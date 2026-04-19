@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const runtimeApiBase = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:8080/api` : 'http://localhost:8080/api';
+const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const runtimeApiBase = isDev ? 'http://localhost:8080/api' : 'https://taskdone-ehkm.onrender.com/api';
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL || '';
 const normalizedConfiguredApiBase =
   typeof window !== 'undefined' && configuredApiBase && configuredApiBase.includes('://localhost:')

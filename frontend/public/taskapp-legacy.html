@@ -1704,7 +1704,8 @@
 
         <script>
             (function () {
-                const apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:8080/api`;
+                const isLocal = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                const apiBaseUrl = isLocal ? `http://localhost:8080/api` : `https://taskdone-ehkm.onrender.com/api`;
 
                 function rpcCall(method, params, onSuccess, onFailure) {
                     const headers = { 'Content-Type': 'application/json' };
@@ -2706,7 +2707,8 @@ function saveToCache(key, data) {
 
             showLoading(true);
 
-            fetch(`${window.location.protocol}//${window.location.hostname}:8080/api/v1/auth/login`, {
+            const loginBaseUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:8080/api' : 'https://taskdone-ehkm.onrender.com/api';
+            fetch(`${loginBaseUrl}/v1/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -6577,7 +6579,8 @@ function handleBulkChecklistSubmit(tableSelector) {
             setupTheme();
             setupCustomSorting();
 
-            fetch(`${window.location.protocol}//${window.location.hostname}:8080/api/v1/auth/me`, {
+            const meBaseUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:8080/api' : 'https://taskdone-ehkm.onrender.com/api';
+            fetch(`${meBaseUrl}/v1/auth/me`, {
                 method: 'GET',
                 credentials: 'include'
             })
