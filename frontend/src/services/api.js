@@ -1,7 +1,10 @@
 import axios from 'axios';
 
-const runtimeApiBase = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:8080/api` : 'http://localhost:8080/api';
-const configuredApiBase = import.meta.env.VITE_API_BASE_URL || '';
+const defaultProductionApiBase = 'https://taskdone-ehkm.onrender.com/api';
+const runtimeApiBase = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}/api` : 'http://localhost:8080/api';
+const configuredApiBase =
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== 'undefined' ? window.__TASKDONE_API_BASE_URL__ || defaultProductionApiBase : '');
 const normalizedConfiguredApiBase =
   typeof window !== 'undefined' && configuredApiBase && configuredApiBase.includes('://localhost:')
     ? configuredApiBase.replace('://localhost:', `://${window.location.hostname}:`)
@@ -208,3 +211,4 @@ export const platformApi = {
 };
 
 export default api;
+
