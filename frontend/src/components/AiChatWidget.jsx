@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { platformApi } from '../services/api.js';
 
-const SYSTEM_PROMPT = `You are TaskDone AI, a smart assistant for the TaskDone SaaS platform.
+const SYSTEM_PROMPT = `You are TaskEasy AI, a smart assistant for the TaskEasy SaaS platform.
 
 YOUR DATA SOURCE:
 - All the data you need is in USER_CONTEXT (provided automatically by the server).
@@ -18,9 +18,14 @@ WHAT YOU CAN DO:
 SECURITY RULES:
 - NEVER expose passwords, tokens, hashes, or internal system IDs.
 - NEVER mention database, backend, APIs, or system internals.
+- STRICT ROLE ACCESS: answer only with data the current signed-in role is allowed to view from USER_CONTEXT.
+- If user asks for out-of-scope data, refuse briefly and offer allowed alternatives.
 
 RESPONSE STYLE:
-- Be concise but thorough. Use bullet points and structured format.
+- Be concise, professional, and structured.
+- Do not use markdown emphasis markers like ** or __.
+- Use plain headings and compact sections.
+- Include a mini text bar chart for numeric summaries (example: Pending [####....] 4).
 - When comparing employees, show numbers.
 - You may respond in Hinglish if the user writes in Hindi.
 - Provide analysis and insights proactively when relevant.`;
@@ -67,6 +72,77 @@ export default function AiChatWidget() {
   const inputRef = useRef(null);
   const abortRef = useRef(null);
 
+  function shouldRenderChartRequest(text = '') {
+    return /(graph|chart|pie|bar|visual|infographic)/i.test(String(text));
+  }
+
+  function extractChartSeries(content = '') {
+    const lines = String(content).split('\n');
+    const rows = [];
+    const seen = new Set();
+    for (const raw of lines) {
+      const line = raw.replace(/[*_`#>-]/g, '').trim();
+      const match = line.match(/^([A-Za-z][A-Za-z0-9\s()%/.-]{1,32})\s*[:|-]\s*(-?\d+(?:\.\d+)?)/);
+      if (!match) continue;
+      const label = match[1].trim();
+      const value = Number(match[2]);
+      if (!Number.isFinite(value)) continue;
+      const key = label.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({ label, value });
+      if (rows.length >= 6) break;
+    }
+    return rows;
+  }
+
+  function ChartInfographic({ series = [] }) {
+    if (!series.length) return null;
+    const clean = series.map((x) => ({ ...x, value: Math.max(0, Number(x.value) || 0) }));
+    const max = Math.max(...clean.map((x) => x.value), 1);
+    const total = clean.reduce((sum, x) => sum + x.value, 0) || 1;
+    const palette = ['#22d3ee', '#fb7185', '#f59e0b', '#a78bfa', '#34d399', '#60a5fa'];
+    const gradient = clean
+      .map((x, i, arr) => {
+        const start = (arr.slice(0, i).reduce((s, it) => s + it.value, 0) / total) * 100;
+        const end = ((arr.slice(0, i + 1).reduce((s, it) => s + it.value, 0)) / total) * 100;
+        return `${palette[i % palette.length]} ${start}% ${end}%`;
+      })
+      .join(', ');
+
+    return (
+      <div className="ai-chat-chart-wrap">
+        <div className="ai-chat-chart-cards">
+          {clean.map((item, idx) => {
+            const height = Math.max(12, (item.value / max) * 78);
+            return (
+              <div className="ai-chat-chart-card" key={`${item.label}-${idx}`}>
+                <div className="ai-chat-chart-bars">
+                  <div className="ai-chat-chart-bar-bg">
+                    <div className="ai-chat-chart-bar-fill" style={{ height: `${height}%`, background: palette[idx % palette.length] }} />
+                  </div>
+                </div>
+                <div className="ai-chat-chart-label" title={item.label}>{item.label}</div>
+                <div className="ai-chat-chart-value">{item.value}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="ai-chat-pie-row">
+          <div className="ai-chat-pie" style={{ background: `conic-gradient(${gradient})` }} />
+          <div className="ai-chat-pie-legend">
+            {clean.slice(0, 4).map((item, idx) => (
+              <div key={`lg-${item.label}-${idx}`} className="ai-chat-pie-item">
+                <span className="ai-chat-pie-dot" style={{ background: palette[idx % palette.length] }} />
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
@@ -85,8 +161,12 @@ export default function AiChatWidget() {
 
     const userMsg = { role: 'user', content: trimmed };
 
-    // Only send system prompt + last 6 messages (backend injects context)
-    const fewMessages = messages.slice(-6);
+    // Only send valid role/content chat history (no UI-only fields, no empty messages)
+    const fewMessages = messages
+      .slice(-10)
+      .map((m) => ({ role: m.role, content: String(m.content || '').trim() }))
+      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content.length > 0)
+      .slice(-6);
     const apiMessages = [
       { role: 'system', content: SYSTEM_PROMPT },
       ...fewMessages,
@@ -98,7 +178,7 @@ export default function AiChatWidget() {
     setStreaming(true);
     setConfigError('');
 
-    const assistantMsg = { role: 'assistant', content: '' };
+    const assistantMsg = { role: 'assistant', content: '', chartRequested: shouldRenderChartRequest(trimmed) };
     setMessages((prev) => [...prev, assistantMsg]);
 
     try {
@@ -148,6 +228,17 @@ export default function AiChatWidget() {
           } catch { /* skip malformed chunks */ }
         }
       }
+      // Final cleanup to keep output professional and remove markdown emphasis noise.
+      setMessages((prev) => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+        if (!last || last.role !== 'assistant') return prev;
+        updated[updated.length - 1] = {
+          ...last,
+          content: String(last.content || '').replace(/\*\*/g, '').replace(/__/g, '')
+        };
+        return updated;
+      });
     } catch (err) {
       if (err.name !== 'AbortError') {
         setMessages((prev) => {
@@ -195,7 +286,7 @@ export default function AiChatWidget() {
             <div className="ai-chat-header-left">
               <span className="ai-chat-sparkle"><SparkleIcon /></span>
               <div>
-                <strong>TaskDone AI</strong>
+                <strong>TaskEasy AI</strong>
                 <span className="ai-chat-status">
                   {streaming ? '● Thinking...' : '● Online'}
                 </span>
@@ -212,7 +303,7 @@ export default function AiChatWidget() {
             {messages.length === 0 && !configError && (
               <div className="ai-chat-empty">
                 <div className="ai-chat-empty-icon">✨</div>
-                <p><strong>Hi! I&apos;m TaskDone AI</strong></p>
+                <p><strong>Hi! I&apos;m TaskEasy AI</strong></p>
                 <p>Ask me about your team, tasks, company data, or anything on your dashboard.</p>
                 <div className="ai-chat-suggestions">
                   {['Show my team summary', 'How many tasks are pending?', 'Give me a quick overview'].map((q) => (
@@ -235,6 +326,7 @@ export default function AiChatWidget() {
                 {msg.role === 'assistant' && <span className="ai-chat-msg-avatar">✦</span>}
                 <div className="ai-chat-msg-content">
                   {msg.content || (msg.role === 'assistant' && streaming ? <span className="ai-chat-typing">●●●</span> : '')}
+                  {msg.role === 'assistant' && msg.chartRequested ? <ChartInfographic series={extractChartSeries(msg.content)} /> : null}
                 </div>
               </div>
             ))}

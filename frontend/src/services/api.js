@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const runtimeApiBase = isDev ? 'http://localhost:8080/api' : 'https://taskdone-ehkm.onrender.com/api';
+const runtimeApiBase = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:8080/api` : 'http://localhost:8080/api';
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL || '';
 const normalizedConfiguredApiBase =
   typeof window !== 'undefined' && configuredApiBase && configuredApiBase.includes('://localhost:')
@@ -177,6 +176,34 @@ export const platformApi = {
       credentials: 'include',
       body: JSON.stringify({ messages })
     });
+  },
+  generateFmsFlowDraft: async (payload) => {
+    const { data } = await api.post('/v1/fms/flows/generate', payload);
+    return data;
+  },
+  createFmsFlow: async (payload) => {
+    const { data } = await api.post('/v1/fms/flows', payload);
+    return data;
+  },
+  listFmsFlows: async () => {
+    const { data } = await api.get('/v1/fms/flows');
+    return data;
+  },
+  getFmsFlow: async (flowId, viewMode = 'live') => {
+    const { data } = await api.get(`/v1/fms/flows/${flowId}`, { params: { viewMode } });
+    return data;
+  },
+  startFmsFlow: async (flowId) => {
+    const { data } = await api.post(`/v1/fms/flows/${flowId}/start`);
+    return data;
+  },
+  actionFmsFlow: async (flowId, payload) => {
+    const { data } = await api.post(`/v1/fms/flows/${flowId}/action`, payload);
+    return data;
+  },
+  monitorFmsFlow: async (flowId, viewMode = 'live') => {
+    const { data } = await api.get(`/v1/fms/flows/${flowId}/monitor`, { params: { viewMode } });
+    return data;
   }
 };
 

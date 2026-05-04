@@ -669,7 +669,7 @@ export default function PlatformPage() {
           <div>
             <div className="platform-brand taskdone-brand-block">
               <div className="taskdone-brand-logo">✓</div>
-              <h1>TaskDone</h1>
+              <h1>TaskEasy</h1>
             </div>
             <ul className="platform-nav-list">
               <li id="overview-nav" className="hidden">

@@ -46,7 +46,7 @@ export default function LoginPage() {
       <section className="login-container">
         <aside className="login-branding">
           <div>
-            <h1 className="brand-title">TaskDone</h1>
+            <h1 className="brand-title">TaskEasy</h1>
             <p className="brand-subtitle">Streamline your workflow, amplify your results.</p>
           </div>
         </aside>

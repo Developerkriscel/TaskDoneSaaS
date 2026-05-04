@@ -45,7 +45,7 @@ export default function AppAdminSecretLoginPage() {
       <section className="login-container">
         <aside className="login-branding">
           <div>
-            <h1 className="brand-title">TaskDone</h1>
+            <h1 className="brand-title">TaskEasy</h1>
             <p className="brand-subtitle">Restricted Platform Access</p>
           </div>
         </aside>

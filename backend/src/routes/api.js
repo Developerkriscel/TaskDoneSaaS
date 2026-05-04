@@ -30,7 +30,7 @@ import {
 const router = Router();
 
 router.get('/rpc/methods', rpcMethods);
-router.post('/rpc', authRequired, rpcCall);
+router.post('/rpc', rpcCall);
 router.post('/rpc/secure', authRequired, rpcCall);
 
 router.use('/admin', authRequired, roleRequired('App Admin'));

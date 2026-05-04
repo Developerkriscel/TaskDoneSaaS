@@ -800,9 +800,9 @@ async function getEmailForUserCompat(userName) {
 async function createEmailTemplateCompat(kind, payload = {}) {
   const safeKind = String(kind || 'notification').trim();
   const title = payload.title || `${safeKind} update`;
-  const body = payload.body || 'Please review the latest task update in TaskDone.';
+  const body = payload.body || 'Please review the latest task update in TaskEasy.';
   return {
-    subject: `[TaskDone] ${title}`,
+    subject: `[TaskEasy] ${title}`,
     html: `<div><h3>${title}</h3><p>${body}</p></div>`
   };
 }

@@ -3,7 +3,7 @@ export default function Sidebar({ role }) {
 
   return (
     <aside className="left-nav">
-      <h2>TaskDone</h2>
+      <h2>TaskEasy</h2>
       <p className="left-role">{role}</p>
       <ul>
         {items.map((item) => (

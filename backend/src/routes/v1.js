@@ -25,6 +25,29 @@ import {
   workRequests
 } from '../controllers/taskController.js';
 import {
+  actionFmsFlowStep,
+  aiAssistFmsStep,
+  createFlowFromSheetRow,
+  createFmsFlowsFromSheet,
+  deleteFmsSheetConfig,
+  createFmsFlow,
+  fmsFlowAnalytics,
+  generateFmsFlowDraft,
+  getFmsFlowDetail,
+  getFmsSheetSession,
+  importFmsSheetPreview,
+  listFmsSheetConfigs,
+  listFmsFlows,
+  mapFmsSheetSession,
+  manageFmsFlow,
+  monitorFmsFlow,
+  prefillFmsSheetRow,
+  saveFmsSheetConfig,
+  suggestFmsSheetMapping,
+  startFmsFlow,
+  updateFmsFlow
+} from '../controllers/fmsFlowController.js';
+import {
   approvePlatformPlanRequest,
   changeUserRoleGlobal,
   companyFullDetails,
@@ -92,6 +115,28 @@ router.get('/kra/master', featureRequired('checklists'), kraMaster);
 router.get('/mis', featureRequired('mis'), permissionRequired('canViewMIS'), misData);
 router.get('/fms/tasks', featureRequired('fmsSystem'), fmsTasks);
 router.post('/fms/done', featureRequired('fmsSystem'), fmsMarkDone);
+router.post('/fms/flows/generate', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), generateFmsFlowDraft);
+router.post('/fms/flows', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), createFmsFlow);
+router.post('/fms/flows/create-from-sheet', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), createFmsFlowsFromSheet);
+router.get('/fms/flows', featureRequired('fmsSystem'), listFmsFlows);
+router.get('/fms/flows-analytics', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), fmsFlowAnalytics);
+router.get('/fms/flows/analytics', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), fmsFlowAnalytics);
+router.get('/fms/flows/:flowId', featureRequired('fmsSystem'), getFmsFlowDetail);
+router.patch('/fms/flows/:flowId', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), updateFmsFlow);
+router.post('/fms/flows/:flowId/manage', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), manageFmsFlow);
+router.post('/fms/flows/:flowId/start', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), startFmsFlow);
+router.post('/fms/flows/:flowId/action', featureRequired('fmsSystem'), actionFmsFlowStep);
+router.get('/fms/flows/:flowId/monitor', featureRequired('fmsSystem'), monitorFmsFlow);
+router.post('/fms/flows/:flowId/ai-assist', featureRequired('fmsSystem'), aiAssistFmsStep);
+router.post('/fms/sheet/import', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), importFmsSheetPreview);
+router.post('/fms/sheet/mapping/suggest', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), suggestFmsSheetMapping);
+router.get('/fms/sheet/:sessionId', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), getFmsSheetSession);
+router.post('/fms/sheet/:sessionId/map', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), mapFmsSheetSession);
+router.post('/fms/sheet/:sessionId/rows/:rowIndex/prefill', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), prefillFmsSheetRow);
+router.post('/fms/sheet/:sessionId/rows/:rowIndex/create-flow', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), createFlowFromSheetRow);
+router.get('/fms/sheet-configs', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), listFmsSheetConfigs);
+router.post('/fms/sheet-configs', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), saveFmsSheetConfig);
+router.delete('/fms/sheet-configs/:configId', featureRequired('fmsSystem'), roleRequired('Admin', 'Super Admin'), deleteFmsSheetConfig);
 router.post('/mis/score', featureRequired('mis'), permissionRequired('canViewMIS'), saveMisScore);
 router.post('/mis/snapshot', featureRequired('mis'), permissionRequired('canViewMIS'), saveMisSnapshot);
 
@@ -141,6 +186,19 @@ router.post('/ai-chat', async (req, res) => {
     return res.status(400).json({ success: false, error: 'messages array is required' });
   }
 
+  // Sanitize inbound messages for Mistral compatibility
+  const validRoles = new Set(['system', 'user', 'assistant']);
+  const sanitizedMessages = messages
+    .map((m) => ({
+      role: String(m?.role || '').trim(),
+      content: String(m?.content || '').trim()
+    }))
+    .filter((m) => validRoles.has(m.role) && m.content.length > 0);
+
+  if (sanitizedMessages.length === 0) {
+    return res.status(400).json({ success: false, error: 'No valid messages to send' });
+  }
+
   // Auto-build context based on user role
   const user = req.user;
   let autoContext = '';
@@ -157,14 +215,44 @@ router.post('/ai-chat', async (req, res) => {
     } else if (user.companyId) {
       const { Company } = await import('../models/Company.js');
       const { User: UserModel } = await import('../models/User.js');
+      const { HierarchyGroup } = await import('../models/HierarchyGroup.js');
       const { DelegationTask } = await import('../models/DelegationTask.js');
       const { ChecklistTask } = await import('../models/ChecklistTask.js');
       const { WorkRequest } = await import('../models/WorkRequest.js');
 
       const company = await Company.findById(user.companyId).select('name code status planName maxUsers').lean();
-      const companyUsers = await UserModel.find({ companyId: user.companyId }).select('name userId role roleName status').lean();
+      const companyUsers = await UserModel.find({ companyId: user.companyId })
+        .select('name userId role roleName status')
+        .lean();
       const companyName = company?.name || 'Unknown';
-      const userIds = companyUsers.map(u => u._id);
+      const normalizedRole = String(user.role || '').trim().toLowerCase();
+      const currentUserId = user?._id || user?.id;
+      const isSuperAdmin = normalizedRole === 'super admin';
+      const isEmployee = normalizedRole === 'employee';
+
+      // Hierarchy-scoped visibility for chatbot (same idea as app access model):
+      // - Super Admin: all active users in company
+      // - Employee: self only
+      // - Admin: self + hierarchy mapped employeeUsers
+      let visibleUsers = [];
+      if (isSuperAdmin) {
+        visibleUsers = companyUsers.filter((u) => String(u.status || '').toLowerCase() === 'active');
+      } else if (isEmployee) {
+        visibleUsers = companyUsers.filter((u) => String(u._id) === String(currentUserId));
+      } else {
+        const selfUser = companyUsers.find((u) => String(u._id) === String(currentUserId));
+        if (selfUser) {
+          const group = await HierarchyGroup.findOne({ companyId: user.companyId, adminUser: selfUser._id })
+            .select('employeeUsers')
+            .lean();
+          const visibleIdSet = new Set([String(selfUser._id), ...((group?.employeeUsers || []).map((id) => String(id)))]);
+          visibleUsers = companyUsers.filter((u) => visibleIdSet.has(String(u._id)));
+        } else {
+          visibleUsers = [];
+        }
+      }
+
+      const userIds = visibleUsers.map(u => u._id);
       const userMap = {};
       companyUsers.forEach(u => { userMap[u._id.toString()] = u.name; });
 
@@ -185,7 +273,7 @@ router.post('/ai-chat', async (req, res) => {
 
       // Build per-employee summary
       const empStats = {};
-      companyUsers.forEach(u => {
+      visibleUsers.forEach(u => {
         empStats[u._id.toString()] = {
           name: u.name, role: u.roleName || u.role, status: u.status,
           delegation: { total: 0, pending: 0, done: 0, delayed: 0, tasks: [] },
@@ -239,9 +327,11 @@ router.post('/ai-chat', async (req, res) => {
       // Build context string
       const ctxLines = [];
       ctxLines.push(`ROLE: ${user.roleName || user.role} at ${companyName}`);
+      ctxLines.push(`ACCESS_SCOPE: ${isSuperAdmin ? 'COMPANY_ALL_ACTIVE' : (isEmployee ? 'SELF_ONLY' : 'HIERARCHY_TEAM_ONLY')}`);
       ctxLines.push(`COMPANY: ${companyName} (${company?.code||''}) | Status: ${company?.status||'Active'} | Plan: ${company?.planName||'N/A'} | Max Users: ${company?.maxUsers||0}`);
-      ctxLines.push(`TOTAL_TEAM: ${companyUsers.length} members`);
+      ctxLines.push(`TOTAL_TEAM: ${visibleUsers.length} members`);
       ctxLines.push(`TASK_SUMMARY: Delegations: ${delegations.length} | Checklists: ${checklists.length} | Work Requests: ${workReqs.length}`);
+      ctxLines.push(`ACCESS_RULE: Never reveal users outside ACCESS_SCOPE. If asked, refuse and offer allowed scope summary.`);
       ctxLines.push('');
 
       Object.values(empStats).forEach(e => {
@@ -273,7 +363,7 @@ router.post('/ai-chat', async (req, res) => {
   } catch { /* context build failure is non-fatal */ }
 
   // Inject auto-context into messages if available
-  const enrichedMessages = [...messages];
+  const enrichedMessages = [...sanitizedMessages];
   if (autoContext && enrichedMessages.length > 0) {
     const sysIdx = enrichedMessages.findIndex(m => m.role === 'system');
     const insertIdx = sysIdx >= 0 ? sysIdx + 1 : 0;
@@ -284,6 +374,7 @@ router.post('/ai-chat', async (req, res) => {
   }
 
   try {
+    const model = process.env.MISTRAL_MODEL || 'mistral-small-latest';
     const upstream = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -291,7 +382,7 @@ router.post('/ai-chat', async (req, res) => {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'mistral-small-latest',
+        model,
         messages: enrichedMessages,
         max_tokens: 800,
         temperature: 0.3,
@@ -302,7 +393,10 @@ router.post('/ai-chat', async (req, res) => {
     if (!upstream.ok) {
       const errText = await upstream.text();
       let errMsg = 'Mistral API error';
-      try { errMsg = JSON.parse(errText)?.message || errMsg; } catch { /* ignore */ }
+      try {
+        const parsed = JSON.parse(errText);
+        errMsg = parsed?.error?.message || parsed?.message || errMsg;
+      } catch { /* ignore */ }
       return res.status(upstream.status).json({ success: false, error: errMsg });
     }
 

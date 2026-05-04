@@ -6,6 +6,7 @@ import ApprovalQueuePanel from '../components/ApprovalQueuePanel.jsx';
 import MisPanel from '../components/MisPanel.jsx';
 import ReportsPanel from '../components/ReportsPanel.jsx';
 import AdminPanel from '../components/AdminPanel.jsx';
+import FmsFlowPanel from '../components/FmsFlowPanel.jsx';
 
 const DEFAULT_FILTERS = {
   period: 'all',
@@ -319,6 +320,17 @@ function CalendarIcon() {
   );
 }
 
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 6h16M7 12h10M10 18h4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="9" cy="6" r="2" fill="currentColor" />
+      <circle cx="15" cy="12" r="2" fill="currentColor" />
+      <circle cx="12" cy="18" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
 function NavButton({ active, onClick, icon, label, notificationVisible }) {
   return (
     <button type="button" className={`taskdone-nav-link ${active ? 'active' : ''}`} onClick={onClick}>
@@ -402,6 +414,7 @@ function DashboardTable({ title, rows, emptyText }) {
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const [filters, setFilters] = useState(() => getDefaultFilters(user));
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard-view');
   const [dashboardMode, setDashboardMode] = useState(user.role === 'Employee' ? 'My' : 'Team');
   const [loading, setLoading] = useState(true);
@@ -489,6 +502,14 @@ export default function DashboardPage() {
     return 'custom';
   }, [filters]);
 
+  const activeFilterCount = useMemo(() => {
+    const defaults = getDefaultFilters(user);
+    const fieldKeys = ['employee', 'project', 'status'];
+    const changedFields = fieldKeys.reduce((count, key) => (filters[key] !== defaults[key] ? count + 1 : count), 0);
+    const dateChanged = filters.fromDate !== defaults.fromDate || filters.toDate !== defaults.toDate || (filters.period && filters.period !== 'all');
+    return changedFields + (dateChanged ? 1 : 0);
+  }, [filters, user]);
+
   useEffect(() => {
     const requiredFeature = VIEW_FEATURE_MAP[currentView];
     if (!requiredFeature || featureAccess[requiredFeature] !== false) {
@@ -516,18 +537,18 @@ export default function DashboardPage() {
 
     if (fallbackView && fallbackView !== currentView) {
       setCurrentView(fallbackView);
-      setError('disabled please contact TaskDone Support');
+      setError('disabled please contact TaskEasy Support');
     }
   }, [currentView, featureAccess]);
 
   function showView(viewName) {
     const requiredFeature = VIEW_FEATURE_MAP[viewName];
     if (requiredFeature && featureAccess[requiredFeature] === false) {
-      setError('disabled please contact TaskDone Support');
+      setError('disabled please contact TaskEasy Support');
       return;
     }
     setCurrentView(viewName);
-    setError((prev) => (prev === 'disabled please contact TaskDone Support' ? '' : prev));
+    setError((prev) => (prev === 'disabled please contact TaskEasy Support' ? '' : prev));
   }
 
   function applyFilters(nextFilters) {
@@ -582,7 +603,7 @@ export default function DashboardPage() {
           <div>
             <div className="platform-brand taskdone-brand-block">
               <div className="taskdone-brand-logo">✓</div>
-              <h1>TaskDone</h1>
+              <h1>TaskEasy</h1>
             </div>
             <ul className="platform-nav-list">
               <li className={navVisibility.dashboard ? '' : 'hidden'}>
@@ -655,7 +676,7 @@ export default function DashboardPage() {
               <>
                 {currentFeatureBlocked ? (
                   <div className="content-wrapper p-5 animated-card">
-                    <p className="state-error">disabled please contact TaskDone Support</p>
+                    <p className="state-error">disabled please contact TaskEasy Support</p>
                   </div>
                 ) : null}
 
@@ -674,6 +695,20 @@ export default function DashboardPage() {
                     </div>
                   ) : null}
 
+                  <div className={`taskdone-filter-shell ${filtersOpen ? 'open' : ''}`}>
+                    <button
+                      type="button"
+                      className="taskdone-filter-trigger"
+                      onClick={() => setFiltersOpen((prev) => !prev)}
+                      aria-expanded={filtersOpen}
+                      aria-controls="dashboard-filter-panel"
+                    >
+                      <span className="taskdone-filter-trigger-icon"><FilterIcon /></span>
+                      <span>Filter</span>
+                      {activeFilterCount > 0 ? <strong>{activeFilterCount}</strong> : null}
+                    </button>
+
+                    <div id="dashboard-filter-panel" className="taskdone-filter-panel" aria-hidden={!filtersOpen}>
                   <section className="taskdone-filter-card content-wrapper animated-card">
                     <div className="taskdone-filter-top-row">
                       <div className="taskdone-filter-selects">
@@ -735,6 +770,8 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   </section>
+                    </div>
+                  </div>
 
                   <section className="taskdone-summary-layout">
                     <SummaryCard title="Delegation" data={metrics.delegation} mode={dashboardMode} />
@@ -766,10 +803,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div id="fms-view" className={`content-view ${currentView === 'fms-view' ? '' : 'hidden'}`}>
-                  <div className="content-wrapper p-5 animated-card">
-                    <h3>FMS System</h3>
-                    <p>FMS panel migration is still pending, but the dashboard shell now follows Task App structure and filter behavior.</p>
-                  </div>
+                  <FmsFlowPanel user={user} allUsers={payload.unified?.allUsers || []} />
                 </div>
 
                 <div id="mis-view" className={`content-view ${currentView === 'mis-view' ? '' : 'hidden'}`}>

@@ -167,7 +167,7 @@ export function featureRequired(featureKey) {
 
     const features = req.companyFeatures || DEFAULT_COMPANY_FEATURES;
     if (features[featureKey] === false) {
-      return res.status(403).json({ success: false, error: 'disabled please contact TaskDone Support' });
+      return res.status(403).json({ success: false, error: 'disabled please contact TaskEasy Support' });
     }
 
     next();
