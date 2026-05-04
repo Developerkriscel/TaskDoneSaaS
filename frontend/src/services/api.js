@@ -10,9 +10,34 @@ const normalizedConfiguredApiBase =
     ? configuredApiBase.replace('://localhost:', `://${window.location.hostname}:`)
     : configuredApiBase;
 
+const TOKEN_KEY = 'td_token';
+
+function readStoredToken() {
+  if (typeof window === 'undefined') return '';
+  return window.localStorage.getItem(TOKEN_KEY) || '';
+}
+
+export function setAuthToken(token) {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    window.localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    window.localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
 const api = axios.create({
   baseURL: normalizedConfiguredApiBase || runtimeApiBase,
   withCredentials: true
+});
+
+api.interceptors.request.use((config) => {
+  const token = readStoredToken();
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export async function rpc(method, ...params) {
@@ -28,6 +53,7 @@ export async function rpc(method, ...params) {
 export const authApi = {
   login: async (userId, password) => {
     const { data } = await api.post('/v1/auth/login', { userId, password });
+    if (data?.token) setAuthToken(data.token);
     return data;
   },
   me: async () => {
@@ -36,6 +62,7 @@ export const authApi = {
   },
   logout: async () => {
     const { data } = await api.post('/v1/auth/logout');
+    setAuthToken('');
     return data;
   }
 };

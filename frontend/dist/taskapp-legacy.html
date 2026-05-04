@@ -1870,6 +1870,34 @@
   </style>
   <script>
     window.__TASKDONE_API_BASE_URL__ = window.__TASKDONE_API_BASE_URL__ || 'https://taskdone-ehkm.onrender.com/api';
+    window.__TASKDONE_TOKEN_KEY__ = 'td_token';
+    window.__TASKDONE_READ_TOKEN__ = function () {
+      try {
+        return localStorage.getItem(window.__TASKDONE_TOKEN_KEY__) || '';
+      } catch {
+        return '';
+      }
+    };
+    window.__TASKDONE_WRITE_TOKEN__ = function (token) {
+      try {
+        if (token) localStorage.setItem(window.__TASKDONE_TOKEN_KEY__, token);
+        else localStorage.removeItem(window.__TASKDONE_TOKEN_KEY__);
+      } catch {
+        // ignore storage failures
+      }
+    };
+    (function installFetchAuthFallback() {
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = function (input, init) {
+        const cfg = init || {};
+        const headers = new Headers(cfg.headers || {});
+        const token = window.__TASKDONE_READ_TOKEN__();
+        if (token && !headers.has('Authorization')) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
+        return originalFetch(input, { ...cfg, headers });
+      };
+    })();
   </script>
 </head>
 
@@ -2183,6 +2211,36 @@ let allAdmins = [],
     currentHierarchy = [],
     allProjects = [];
 let isProgrammaticChange = false;
+const APP_BOOTSTRAP_CACHE_KEY = 'td_bootstrap_cache_v1';
+const APP_BOOTSTRAP_CACHE_TTL_MS = 2 * 60 * 1000;
+
+function buildBootstrapCacheKey(userName, userRole) {
+    return `${APP_BOOTSTRAP_CACHE_KEY}:${String(userName || '').trim().toLowerCase()}:${String(userRole || '').trim().toLowerCase()}`;
+}
+
+function readBootstrapCache(userName, userRole) {
+    try {
+        const raw = localStorage.getItem(buildBootstrapCacheKey(userName, userRole));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.ts || !parsed.data) return null;
+        if ((Date.now() - Number(parsed.ts)) > APP_BOOTSTRAP_CACHE_TTL_MS) return null;
+        return parsed.data;
+    } catch {
+        return null;
+    }
+}
+
+function writeBootstrapCache(userName, userRole, data) {
+    try {
+        localStorage.setItem(
+            buildBootstrapCacheKey(userName, userRole),
+            JSON.stringify({ ts: Date.now(), data })
+        );
+    } catch {
+        // ignore storage failures
+    }
+}
 // Global Cache Store
 let GLOBAL_STORE = {
     dashboard: null,
@@ -6803,6 +6861,9 @@ function saveToCache(key, data) {
                 if (!res.ok || !payload.isValid) {
                     throw new Error(payload.error || payload.message || 'Invalid credentials.');
                 }
+                if (payload.token) {
+                    window.__TASKDONE_WRITE_TOKEN__(payload.token);
+                }
                 initializeApp(payload.userName, payload.role);
             })
             .catch((err) => {
@@ -6822,6 +6883,7 @@ function saveToCache(key, data) {
             sessionStorage.removeItem('td_user');
             sessionStorage.removeItem('td_role');
             localStorage.removeItem('td_auth_user');
+            localStorage.removeItem('td_token');
             // ------------------------------------
 
             $('#app-view').hide();
@@ -6882,37 +6944,44 @@ function initializeApp(userName, userRole) {
         if (currentUserRole === 'Super Admin') $('#user-management-nav, #hierarchy-nav').show();
     }
 
-    // Live-first mode: always fetch fresh data from backend.
-    fetchDataFromServer();
+    const cachedData = readBootstrapCache(userName, userRole);
+    if (cachedData && cachedData.success) {
+        applyAppData(cachedData);
+        fetchDataFromServer(true);
+        return;
+    }
+    fetchDataFromServer(false);
 }
 
 // --- Index.html (Update fetchDataFromServer) ---
 
-function fetchDataFromServer() {
-    showLoading(true);
+function fetchDataFromServer(silent = false) {
+    if (!silent) showLoading(true);
     google.script.run.withSuccessHandler(data => {
-        showLoading(false);
+        if (!silent) showLoading(false);
         
         // --- FIX: Null Check Added ---
         if (!data) {
             console.error("Server returned NULL. Payload might be too large or script failed.");
-            Swal.fire('Data Error', 'Server से डेटा नहीं मिला। कृपया पेज रिफ्रेश करें।', 'error');
+            Swal.fire('Data Error', 'Server data load failed. Please refresh the page.', 'error');
             return;
         }
         // -----------------------------
 
         if (data.success) {
+            writeBootstrapCache(currentUser, currentUserRole, data);
             applyAppData(data);
-            console.log("✅ Fresh Data Fetched from Server");
+            console.log("Fresh data fetched from server");
         } else {
             Swal.fire('Error', data.error || 'Unknown Server Error', 'error');
         }
     }).withFailureHandler(err => {
-        showLoading(false);
+        if (!silent) showLoading(false);
         console.error("Server Failure:", err);
-        Swal.fire('Connection Error', 'Server connect नहीं हो पाया। (' + err.message + ')', 'error');
+        if (!silent) Swal.fire('Connection Error', 'Server connect nahi ho paya. (' + err.message + ')', 'error');
     }).getUnifiedAppData(currentUser, currentUserRole);
 }
+
 
 // --- HELPER FUNCTION TO APPLY DATA ---
 function applyAppData(data) {
@@ -11298,4 +11367,5 @@ $(document).on('click', '.export-pdf-btn', function() {
 </body>
 
 </html>
+
 

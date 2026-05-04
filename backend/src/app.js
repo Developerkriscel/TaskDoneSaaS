@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
@@ -17,6 +18,7 @@ function buildCorsOptions() {
     .split(',')
     .map((x) => x.trim().replace(/\/$/, '')) // strip trailing slash if present
     .filter(Boolean);
+  const defaultAllowedPatterns = [/^https:\/\/.*\.vercel\.app$/i, /^http:\/\/localhost(?::\d+)?$/i, /^http:\/\/127\.0\.0\.1(?::\d+)?$/i];
 
   if (allowAnyOrigin) {
     return {
@@ -35,6 +37,10 @@ function buildCorsOptions() {
         cb(null, true);
         return;
       }
+      if (allowlist.length === 0 && defaultAllowedPatterns.some((pattern) => pattern.test(origin))) {
+        cb(null, true);
+        return;
+      }
       cb(new Error('Origin not allowed by CORS'));
     },
     credentials: true
@@ -46,6 +52,7 @@ export function createApp() {
 
   app.set('trust proxy', 1);
   app.use(helmet());
+  app.use(compression());
   app.use(cors(buildCorsOptions()));
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { authApi } from '../services/api.js';
+import { authApi, setAuthToken } from '../services/api.js';
 
 const AuthContext = createContext(null);
 
@@ -48,6 +48,7 @@ export function AuthProvider({ children }) {
           await authApi.logout();
         } catch {
           // Ignore logout network failures and force local state clear.
+          setAuthToken('');
         }
         setUser(null);
       }
