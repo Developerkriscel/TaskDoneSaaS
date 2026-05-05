@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { legacyApi } from '../services/api.js';
+import { legacyApi, platformApi } from '../services/api.js';
 import StatusBadge from './StatusBadge.jsx';
 
 const ADMIN_ROLES = new Set(['Admin', 'Super Admin', 'App Admin']);
-const TABS = ['Users', 'Hierarchy', 'Projects', 'FMS'];
+const TABS = ['Users', 'Hierarchy', 'Projects', 'FMS', 'Settings'];
 
 function ensureSuccess(res) {
   if (typeof res === 'string' && res !== 'success') {
@@ -11,8 +11,8 @@ function ensureSuccess(res) {
   }
 }
 
-export default function AdminPanel({ user }) {
-  const [activeTab, setActiveTab] = useState('Users');
+export default function AdminPanel({ user, defaultTab = 'Users' }) {
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
@@ -35,6 +35,12 @@ export default function AdminPanel({ user }) {
   const [hierarchyForm, setHierarchyForm] = useState({ admin: '', employeesCsv: '' });
   const [projectName, setProjectName] = useState('');
   const [fmsForm, setFmsForm] = useState({ sheetId: '', range: 'FMS!A2:M' });
+  const [settingsSubTab, setSettingsSubTab] = useState('Notification Configuration');
+  const [notificationSettings, setNotificationSettings] = useState({
+    sender: { fromName: '', fromEmail: '', replyTo: '' },
+    smtp: { host: '', port: 587, secure: false, user: '', password: '' },
+    notifications: { assignment: true, submission: true, approval: true, rework: true }
+  });
 
   const canManage = useMemo(() => ADMIN_ROLES.has(String(user.role || '').trim()), [user.role]);
 
@@ -66,6 +72,10 @@ export default function AdminPanel({ user }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canManage]);
 
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
+
   function startEditUser(row) {
     setUserForm({
       user: row.user || '',
@@ -84,8 +94,9 @@ export default function AdminPanel({ user }) {
     setMsg('');
     setError('');
 
-    if (!userForm.user || !userForm.userId || !userForm.password) {
-      setError('Name, User ID, and Password are required');
+    const isExistingUser = users.some((u) => u.userId === userForm.userId);
+    if (!userForm.user || !userForm.userId || (!isExistingUser && !userForm.password)) {
+      setError('Name and User ID are required. Password is required only for new user.');
       return;
     }
 
@@ -202,6 +213,46 @@ export default function AdminPanel({ user }) {
     }
   }
 
+  async function loadNotificationSettings() {
+    setMsg('');
+    setError('');
+    try {
+      const data = await platformApi.getAdminNotificationSettings();
+      if (data?.settings) setNotificationSettings(data.settings);
+    } catch (err) {
+      setError(err.message || 'Failed to load notification settings');
+    }
+  }
+
+  async function saveNotificationSettings(e) {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      const data = await platformApi.updateAdminNotificationSettings(notificationSettings);
+      if (data?.settings) setNotificationSettings(data.settings);
+      setMsg('Notification settings saved.');
+    } catch (err) {
+      setError(err.message || 'Failed to save notification settings');
+    }
+  }
+
+  async function sendTestNotificationEmail() {
+    const to = String(notificationSettings.sender.replyTo || notificationSettings.sender.fromEmail || '').trim();
+    if (!to) {
+      setError('Please set sender/reply-to email first.');
+      return;
+    }
+    setMsg('');
+    setError('');
+    try {
+      await platformApi.sendAdminNotificationTestEmail(to);
+      setMsg(`Test email sent to ${to}`);
+    } catch (err) {
+      setError(err.message || 'Failed to send test email');
+    }
+  }
+
   if (!canManage) {
     return (
       <section className="panel-table">
@@ -224,12 +275,15 @@ export default function AdminPanel({ user }) {
       </div>
 
       <div className="tab-row">
-        {TABS.map((tab) => (
+        {TABS.filter((tab) => (tab === 'Settings' ? user.role === 'Super Admin' : true)).map((tab) => (
           <button
             key={tab}
             type="button"
             className={tab === activeTab ? 'tab-btn active' : 'tab-btn'}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => {
+              setActiveTab(tab);
+              if (tab === 'Settings') loadNotificationSettings();
+            }}
           >
             {tab}
           </button>
@@ -256,7 +310,7 @@ export default function AdminPanel({ user }) {
               <input value={userForm.userId} onChange={(e) => setUserForm((p) => ({ ...p, userId: e.target.value }))} required />
             </label>
             <label>
-              Email
+              Receiver Email
               <input value={userForm.email} onChange={(e) => setUserForm((p) => ({ ...p, email: e.target.value }))} type="email" />
             </label>
             <label>
@@ -295,7 +349,7 @@ export default function AdminPanel({ user }) {
                 <tr>
                   <th className="col-user">User</th>
                   <th className="col-id">User ID</th>
-                  <th>Email</th>
+                  <th>Receiver Email</th>
                   <th className="col-user">Role</th>
                   <th className="col-status">Status</th>
                   <th className="col-action">Action</th>
@@ -442,6 +496,35 @@ export default function AdminPanel({ user }) {
               Save FMS Setting
             </button>
           </form>
+        </div>
+      ) : null}
+
+      {activeTab === 'Settings' && user.role === 'Super Admin' ? (
+        <div className="panel-body">
+          <div className="tab-row">
+            <button type="button" className={settingsSubTab === 'Notification Configuration' ? 'tab-btn active' : 'tab-btn'} onClick={() => setSettingsSubTab('Notification Configuration')}>
+              Notification Configuration
+            </button>
+          </div>
+          {settingsSubTab === 'Notification Configuration' ? (
+            <form className="work-form" onSubmit={saveNotificationSettings}>
+              <h4>Facebook-style Flow: Settings > Sub Settings > Configuration</h4>
+              <label>Sender Name<input value={notificationSettings.sender.fromName || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, sender: { ...p.sender, fromName: e.target.value } }))} /></label>
+              <label>Sender Email<input type="email" value={notificationSettings.sender.fromEmail || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, sender: { ...p.sender, fromEmail: e.target.value } }))} /></label>
+              <label>Reply-To<input type="email" value={notificationSettings.sender.replyTo || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, sender: { ...p.sender, replyTo: e.target.value } }))} /></label>
+              <label>SMTP Host<input value={notificationSettings.smtp.host || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, smtp: { ...p.smtp, host: e.target.value } }))} /></label>
+              <label>SMTP Port<input type="number" value={notificationSettings.smtp.port || 587} onChange={(e) => setNotificationSettings((p) => ({ ...p, smtp: { ...p.smtp, port: Number(e.target.value || 587) } }))} /></label>
+              <label>SMTP User<input value={notificationSettings.smtp.user || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, smtp: { ...p.smtp, user: e.target.value } }))} /></label>
+              <label>SMTP Password<input type="password" value={notificationSettings.smtp.password || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, smtp: { ...p.smtp, password: e.target.value } }))} /></label>
+              <label><input type="checkbox" checked={Boolean(notificationSettings.smtp.secure)} onChange={(e) => setNotificationSettings((p) => ({ ...p, smtp: { ...p.smtp, secure: e.target.checked } }))} /> Use SSL/TLS</label>
+              <label><input type="checkbox" checked={Boolean(notificationSettings.notifications.assignment)} onChange={(e) => setNotificationSettings((p) => ({ ...p, notifications: { ...p.notifications, assignment: e.target.checked } }))} /> Assignment Mail</label>
+              <label><input type="checkbox" checked={Boolean(notificationSettings.notifications.submission)} onChange={(e) => setNotificationSettings((p) => ({ ...p, notifications: { ...p.notifications, submission: e.target.checked } }))} /> Submission Mail</label>
+              <label><input type="checkbox" checked={Boolean(notificationSettings.notifications.approval)} onChange={(e) => setNotificationSettings((p) => ({ ...p, notifications: { ...p.notifications, approval: e.target.checked } }))} /> Approval Mail</label>
+              <label><input type="checkbox" checked={Boolean(notificationSettings.notifications.rework)} onChange={(e) => setNotificationSettings((p) => ({ ...p, notifications: { ...p.notifications, rework: e.target.checked } }))} /> Rework Mail</label>
+              <button type="submit" disabled={loading}>Save Configuration</button>
+              <button type="button" onClick={sendTestNotificationEmail} disabled={loading}>Send Test Mail</button>
+            </form>
+          ) : null}
         </div>
       ) : null}
     </section>

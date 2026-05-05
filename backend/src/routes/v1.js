@@ -55,6 +55,9 @@ import {
   deleteCompanyRole,
   getCompanySubscription,
   platformAuditLogs,
+  platformNotificationSettings,
+  platformNotificationSettingsUpdate,
+  platformNotificationTestEmail,
   platformPlanRequests,
   listCompanies,
   listCompanyRoles,
@@ -77,6 +80,9 @@ import {
   deleteUser as deleteUserAdmin,
   hierarchyGet as hierarchyGetAdmin,
   hierarchySave as hierarchySaveAdmin,
+  adminNotificationSettingsGet,
+  adminNotificationSettingsSave,
+  adminNotificationSettingsTest,
   manageProject as manageProjectAdmin,
   projects as projectsAdmin,
   saveFmsConnector as saveFmsConnectorAdmin,
@@ -86,6 +92,28 @@ import {
 import { authRequired, featureRequired, permissionRequired, roleRequired } from '../middlewares/auth.js';
 
 const router = Router();
+
+function twoDigit(value) {
+  return String(value).padStart(2, '0');
+}
+
+function formatAppDate(value, fallback = 'N/A') {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return `${twoDigit(date.getDate())}-${twoDigit(date.getMonth() + 1)}-${date.getFullYear()}`;
+}
+
+function formatAppDateTime(value, fallback = 'N/A') {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  let hours = date.getHours();
+  const suffix = hours >= 12 ? 'PM' : 'AM';
+  hours %= 12;
+  if (hours === 0) hours = 12;
+  return `${formatAppDate(date, fallback)} ${twoDigit(hours)}:${twoDigit(date.getMinutes())} ${suffix}`;
+}
 
 router.post('/auth/login', login);
 router.get('/auth/me', authRequired, currentUser);
@@ -108,8 +136,8 @@ router.post('/tasks/status', featureRequired('trackStatus'), permissionRequired(
 router.get('/tasks/submissions', featureRequired('trackStatus'), userSubmissions);
 
 router.get('/approvals', featureRequired('trackStatus'), permissionRequired('canApproveTasks'), approvals);
-router.get('/reports', featureRequired('reports'), reports);
-router.get('/reports/employee-performance', featureRequired('reports'), employeePerformance);
+router.get('/reports', featureRequired('reports'), roleRequired('Admin', 'Super Admin'), reports);
+router.get('/reports/employee-performance', featureRequired('reports'), roleRequired('Admin', 'Super Admin'), employeePerformance);
 router.get('/dashboard/card-filter', featureRequired('dashboard'), filteredCard);
 router.get('/kra/master', featureRequired('checklists'), kraMaster);
 router.get('/mis', featureRequired('mis'), permissionRequired('canViewMIS'), misData);
@@ -148,6 +176,9 @@ router.delete('/admin/users/:userId', roleRequired('Admin', 'Super Admin'), dele
 router.get('/admin/hierarchy', roleRequired('Admin', 'Super Admin'), hierarchyGetAdmin);
 router.post('/admin/hierarchy', roleRequired('Admin', 'Super Admin'), hierarchySaveAdmin);
 router.post('/admin/fms/connector', roleRequired('Super Admin'), saveFmsConnectorAdmin);
+router.get('/admin/notification-settings', roleRequired('Super Admin'), adminNotificationSettingsGet);
+router.patch('/admin/notification-settings', roleRequired('Super Admin'), adminNotificationSettingsSave);
+router.post('/admin/notification-settings/test-email', roleRequired('Super Admin'), adminNotificationSettingsTest);
 
 router.get('/platform/overview', roleRequired('App Admin'), platformOverview);
 router.get('/platform/renewals', roleRequired('App Admin'), platformRenewals);
@@ -173,6 +204,9 @@ router.patch('/platform/users/:userId', roleRequired('App Admin'), platformUserU
 router.post('/platform/users/:userId/reset-password', roleRequired('App Admin'), resetUserPasswordGlobal);
 router.patch('/platform/users/:userId/role', roleRequired('App Admin'), changeUserRoleGlobal);
 router.patch('/platform/users/:userId/toggle-status', roleRequired('App Admin'), toggleUserStatusGlobal);
+router.get('/platform/companies/:companyId/notification-settings', roleRequired('App Admin'), platformNotificationSettings);
+router.patch('/platform/companies/:companyId/notification-settings', roleRequired('App Admin'), platformNotificationSettingsUpdate);
+router.post('/platform/companies/:companyId/notification-settings/test-email', roleRequired('App Admin'), platformNotificationTestEmail);
 
 // ── AI Chat Proxy (Mistral) — ALL authenticated users ──
 router.post('/ai-chat', async (req, res) => {
@@ -211,7 +245,7 @@ router.post('/ai-chat', async (req, res) => {
       const active = companies.filter(c => c.status === 'Active').length;
       const frozen = companies.filter(c => ['Frozen','Expired'].includes(c.status)).length;
       const mrr = companies.filter(c => c.status === 'Active').reduce((s,c) => s + Number(c.monthlyRate||0), 0);
-      autoContext = `ROLE: App Admin (Platform Owner)\nPLATFORM_METRICS:\nTotal Companies: ${companies.length}\nActive: ${active}\nFrozen/Expired: ${frozen}\nTotal Users: ${totalUsers}\nMRR: Rs ${mrr.toLocaleString()}\n\nCOMPANIES:\n${companies.slice(0,50).map(c => `- ${c.name} | Plan: ${c.planName||'N/A'} | Status: ${c.status} | Max Users: ${c.maxUsers||0} | Expiry: ${c.planExpiryDate ? new Date(c.planExpiryDate).toLocaleDateString() : 'N/A'}`).join('\n')}`;
+      autoContext = `ROLE: App Admin (Platform Owner)\nPLATFORM_METRICS:\nTotal Companies: ${companies.length}\nActive: ${active}\nFrozen/Expired: ${frozen}\nTotal Users: ${totalUsers}\nMRR: Rs ${mrr.toLocaleString()}\n\nCOMPANIES:\n${companies.slice(0,50).map(c => `- ${c.name} | Plan: ${c.planName||'N/A'} | Status: ${c.status} | Max Users: ${c.maxUsers||0} | Expiry: ${formatAppDate(c.planExpiryDate)}`).join('\n')}`;
     } else if (user.companyId) {
       const { Company } = await import('../models/Company.js');
       const { User: UserModel } = await import('../models/User.js');
@@ -292,7 +326,7 @@ router.post('/ai-chat', async (req, res) => {
         else if (st === 'done' || st === 'approved') e.delegation.done++;
         if (t.onTimeStatus === 'Delayed') e.delegation.delayed++;
         if (e.delegation.tasks.length < 8) {
-          e.delegation.tasks.push(`${t.description?.slice(0,60)} [${t.status}] [${t.onTimeStatus}] [Priority:${t.priority||'Medium'}] [Due:${t.targetDate ? new Date(t.targetDate).toLocaleDateString() : 'N/A'}] [Delay:${t.delay||0}d] [AssignedBy:${userMap[t.delegatedByUser?.toString()]||'?'}]`);
+          e.delegation.tasks.push(`${t.description?.slice(0,60)} [${t.status}] [${t.onTimeStatus}] [Priority:${t.priority||'Medium'}] [Due:${formatAppDateTime(t.targetDate)}] [Delay:${t.delay||0}d] [AssignedBy:${userMap[t.delegatedByUser?.toString()]||'?'}]`);
         }
       });
 
@@ -306,7 +340,7 @@ router.post('/ai-chat', async (req, res) => {
         else if (st === 'done' || st === 'approved') e.checklist.done++;
         if (t.onTimeStatus === 'Delayed') e.checklist.delayed++;
         if (e.checklist.tasks.length < 8) {
-          e.checklist.tasks.push(`${t.description?.slice(0,60)} [${t.approvalStatus}] [${t.onTimeStatus}] [Freq:${t.frequency||'Adhoc'}] [Plan:${t.planDate ? new Date(t.planDate).toLocaleDateString() : 'N/A'}] [Delay:${t.totalDelay||0}d]`);
+          e.checklist.tasks.push(`${t.description?.slice(0,60)} [${t.approvalStatus}] [${t.onTimeStatus}] [Freq:${t.frequency||'Adhoc'}] [Plan:${formatAppDateTime(t.planDate)}] [Delay:${t.totalDelay||0}d]`);
         }
       });
 
@@ -320,7 +354,7 @@ router.post('/ai-chat', async (req, res) => {
         else if (st === 'done' || st === 'approved' || st === 'completed') e.workRequest.done++;
         if (t.onTimeStatus === 'Delayed') e.workRequest.delayed++;
         if (e.workRequest.tasks.length < 6) {
-          e.workRequest.tasks.push(`${t.description?.slice(0,60)} [${t.status}] [${t.onTimeStatus}] [Due:${t.deadline ? new Date(t.deadline).toLocaleDateString() : 'N/A'}] [Delay:${t.delayDays||0}d] [RequestedBy:${userMap[t.requestedByUser?.toString()]||'?'}]`);
+          e.workRequest.tasks.push(`${t.description?.slice(0,60)} [${t.status}] [${t.onTimeStatus}] [Due:${formatAppDateTime(t.deadline)}] [Delay:${t.delayDays||0}d] [RequestedBy:${userMap[t.requestedByUser?.toString()]||'?'}]`);
         }
       });
 

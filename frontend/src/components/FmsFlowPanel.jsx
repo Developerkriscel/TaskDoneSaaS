@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { platformApi } from '../services/api.js';
+import { formatDateTime } from '../utils/dateFormat.js';
 
 const ROLE_OPTIONS = ['Employee', 'Admin', 'Super Admin'];
 const ACTION_OPTIONS = ['submit', 'review', 'approve'];
@@ -171,7 +172,7 @@ export default function FmsFlowPanel({ user, allUsers = [] }) {
   const myTurn = currentStep && String(currentStep.assignedUserName || '').trim().toLowerCase() === String(user.name || '').trim().toLowerCase();
 
   return (
-    <section className="panel-table">
+    <section className="panel-table fms-flow-panel">
       <div className="panel-head">
         <h3>FMS Flow Monitor</h3>
         <span>{selectedFlow?.status || 'Design'}</span>
@@ -195,7 +196,7 @@ export default function FmsFlowPanel({ user, allUsers = [] }) {
             <button type="button" disabled={busy || !intent.trim()} onClick={generateWithAi}>Generate with AI</button>
           </form>
 
-          <div className="table-wrap">
+          <div className="table-wrap fms-flow-table-wrap">
             <table className="table-legacy table-compact">
               <thead>
                 <tr>
@@ -239,7 +240,7 @@ export default function FmsFlowPanel({ user, allUsers = [] }) {
             </table>
           </div>
 
-          <div className="row-actions">
+          <div className="row-actions fms-flow-actions">
             <button type="button" className="platform-table-btn" onClick={addStep}>Add Step</button>
             <button type="button" className="platform-primary-btn" disabled={busy || !draft.steps.length} onClick={finalizeFlow}>
               Finalize Flow
@@ -248,7 +249,7 @@ export default function FmsFlowPanel({ user, allUsers = [] }) {
         </div>
       ) : null}
 
-      <div className="panel-body">
+        <div className="panel-body fms-flow-monitor">
         <h4>Phase 2-4: Assignment, Execution, Monitoring</h4>
         {!isEmployee ? (
           <>
@@ -271,7 +272,7 @@ export default function FmsFlowPanel({ user, allUsers = [] }) {
 
         {selectedFlow ? (
           <>
-            <div className="table-wrap">
+            <div className="table-wrap fms-flow-table-wrap">
               <table className="table-legacy table-compact">
                 <thead>
                   <tr>
@@ -298,7 +299,7 @@ export default function FmsFlowPanel({ user, allUsers = [] }) {
               </table>
             </div>
 
-            <div className="row-actions">
+            <div className="row-actions fms-flow-actions">
               {canDesign && selectedFlow.status === 'ready' ? <button type="button" className="platform-primary-btn" disabled={busy} onClick={startFlow}>Start Flow</button> : null}
               {selectedFlow.status === 'active' && myTurn ? (
                 <>
@@ -318,7 +319,7 @@ export default function FmsFlowPanel({ user, allUsers = [] }) {
               </div>
             ) : null}
 
-            <div className="table-wrap">
+            <div className="table-wrap fms-flow-table-wrap">
               <table className="table-legacy table-compact">
                 <thead>
                   <tr>
@@ -331,7 +332,7 @@ export default function FmsFlowPanel({ user, allUsers = [] }) {
                 <tbody>
                   {(monitor?.events || []).slice().reverse().map((e, idx) => (
                     <tr key={`evt-${idx}`}>
-                      <td>{e.at ? new Date(e.at).toLocaleString() : '-'}</td>
+                      <td>{formatDateTime(e.at)}</td>
                       <td>{e.actorName || '-'}</td>
                       <td>{e.eventType}</td>
                       <td>{e.message || '-'}</td>

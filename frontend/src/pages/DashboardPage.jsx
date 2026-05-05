@@ -7,6 +7,7 @@ import MisPanel from '../components/MisPanel.jsx';
 import ReportsPanel from '../components/ReportsPanel.jsx';
 import AdminPanel from '../components/AdminPanel.jsx';
 import FmsFlowPanel from '../components/FmsFlowPanel.jsx';
+import { formatDate } from '../utils/dateFormat.js';
 
 const DEFAULT_FILTERS = {
   period: 'all',
@@ -71,17 +72,11 @@ function formatInputDate(value) {
 }
 
 function formatDisplayDate(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('en-GB');
+  return value ? formatDate(value, '') : '';
 }
 
 function formatTaskDate(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString('en-GB');
+  return formatDate(value);
 }
 
 function getGreeting() {
@@ -320,17 +315,6 @@ function CalendarIcon() {
   );
 }
 
-function FilterIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 6h16M7 12h10M10 18h4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      <circle cx="9" cy="6" r="2" fill="currentColor" />
-      <circle cx="15" cy="12" r="2" fill="currentColor" />
-      <circle cx="12" cy="18" r="2" fill="currentColor" />
-    </svg>
-  );
-}
-
 function NavButton({ active, onClick, icon, label, notificationVisible }) {
   return (
     <button type="button" className={`taskdone-nav-link ${active ? 'active' : ''}`} onClick={onClick}>
@@ -414,7 +398,6 @@ function DashboardTable({ title, rows, emptyText }) {
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const [filters, setFilters] = useState(() => getDefaultFilters(user));
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard-view');
   const [dashboardMode, setDashboardMode] = useState(user.role === 'Employee' ? 'My' : 'Team');
   const [loading, setLoading] = useState(true);
@@ -501,14 +484,6 @@ export default function DashboardPage() {
     if (filters.fromDate === lastMonth.fromDate && filters.toDate === lastMonth.toDate) return 'lastMonth';
     return 'custom';
   }, [filters]);
-
-  const activeFilterCount = useMemo(() => {
-    const defaults = getDefaultFilters(user);
-    const fieldKeys = ['employee', 'project', 'status'];
-    const changedFields = fieldKeys.reduce((count, key) => (filters[key] !== defaults[key] ? count + 1 : count), 0);
-    const dateChanged = filters.fromDate !== defaults.fromDate || filters.toDate !== defaults.toDate || (filters.period && filters.period !== 'all');
-    return changedFields + (dateChanged ? 1 : 0);
-  }, [filters, user]);
 
   useEffect(() => {
     const requiredFeature = VIEW_FEATURE_MAP[currentView];
@@ -695,20 +670,8 @@ export default function DashboardPage() {
                     </div>
                   ) : null}
 
-                  <div className={`taskdone-filter-shell ${filtersOpen ? 'open' : ''}`}>
-                    <button
-                      type="button"
-                      className="taskdone-filter-trigger"
-                      onClick={() => setFiltersOpen((prev) => !prev)}
-                      aria-expanded={filtersOpen}
-                      aria-controls="dashboard-filter-panel"
-                    >
-                      <span className="taskdone-filter-trigger-icon"><FilterIcon /></span>
-                      <span>Filter</span>
-                      {activeFilterCount > 0 ? <strong>{activeFilterCount}</strong> : null}
-                    </button>
-
-                    <div id="dashboard-filter-panel" className="taskdone-filter-panel" aria-hidden={!filtersOpen}>
+                  <div className="taskdone-filter-shell open">
+                    <div id="dashboard-filter-panel" className="taskdone-filter-panel" aria-hidden="false">
                   <section className="taskdone-filter-card content-wrapper animated-card">
                     <div className="taskdone-filter-top-row">
                       <div className="taskdone-filter-selects">

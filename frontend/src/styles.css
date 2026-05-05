@@ -1941,6 +1941,39 @@ th {
   background: #fff;
 }
 
+.work-form select[multiple] {
+  min-height: 110px;
+  max-height: 220px;
+  padding-right: 8px;
+}
+
+.multi-checkbox-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  margin-top: 0.5rem;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.checkbox-item:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.checkbox-item input {
+  accent-color: var(--blue);
+}
+
 .upload-panel {
   border: 1px solid #efe7da;
   background: #fff;
@@ -2359,6 +2392,59 @@ th {
   .taskdone-shell .row-actions.col-action .platform-table-btn {
     width: auto;
     min-width: 0;
+  }
+
+  .fms-flow-panel {
+    padding: 0.85rem;
+  }
+
+  .fms-flow-panel .panel-head,
+  .fms-flow-monitor,
+  .fms-flow-actions {
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .fms-flow-panel .panel-head,
+  .fms-flow-actions {
+    flex-direction: column;
+  }
+
+  .fms-flow-panel .panel-body,
+  .fms-flow-panel .work-form {
+    min-width: 0;
+  }
+
+  .fms-flow-panel .work-form {
+    grid-template-columns: 1fr;
+  }
+
+  .fms-flow-panel input,
+  .fms-flow-panel select,
+  .fms-flow-panel textarea,
+  .fms-flow-panel button {
+    font-size: 16px;
+  }
+
+  .fms-flow-actions .form-input,
+  .fms-flow-actions button,
+  .fms-flow-panel .platform-primary-btn,
+  .fms-flow-panel .platform-table-btn {
+    width: 100%;
+  }
+
+  .fms-flow-table-wrap {
+    border: 1px solid #e6eaff;
+    border-radius: 0.85rem;
+    background: #ffffff;
+  }
+
+  .fms-flow-table-wrap table {
+    min-width: 760px;
+  }
+
+  .fms-flow-panel .taskdone-summary-layout {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -2975,18 +3061,54 @@ th {
 
 @media (max-width: 480px) {
   .ai-chat-window {
-    width: calc(100vw - 1rem);
-    right: 0.5rem;
-    bottom: 5rem;
-    height: calc(100vh - 6rem);
+    inset: auto 0.5rem calc(env(safe-area-inset-bottom, 0px) + 4.75rem) 0.5rem;
+    width: auto;
+    max-width: none;
+    height: min(74dvh, calc(100dvh - 6rem));
+    max-height: min(74dvh, calc(100dvh - 6rem));
     border-radius: 1rem;
   }
   .ai-chat-fab {
-    bottom: 1rem;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
     right: 1rem;
+  }
+  .ai-chat-header {
+    padding: 0.75rem 0.85rem;
+  }
+  .ai-chat-messages {
+    padding: 0.75rem;
+    gap: 0.65rem;
+  }
+  .ai-chat-msg {
+    max-width: 100%;
+  }
+  .ai-chat-msg-content {
+    max-width: calc(100vw - 5.25rem);
+    font-size: 0.82rem;
+  }
+  .ai-chat-msg--user .ai-chat-msg-content {
+    max-width: calc(100vw - 3.5rem);
+  }
+  .ai-chat-input-area {
+    padding: 0.55rem;
+  }
+  .ai-chat-input {
+    font-size: 16px;
   }
   .ai-chat-chart-cards {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  .ai-chat-window {
+    left: 0.35rem;
+    right: 0.35rem;
+  }
+
+  .ai-chat-msg-avatar {
+    width: 1.35rem;
+    height: 1.35rem;
   }
 }
 
@@ -3153,31 +3275,13 @@ button,
 
 /* Collapsible dashboard filters */
 .taskdone-filter-shell {
-  display: grid;
-  justify-items: end;
+  display: block;
   gap: 0.7rem;
   position: relative;
 }
 
 .taskdone-filter-trigger {
-  width: auto;
-  min-width: 0;
-  height: 2.8rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0 0.95rem;
-  border-radius: 999px;
-  border: 1px solid rgba(108, 99, 255, 0.2);
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--taskeasy-primary-deep);
-  box-shadow: 0 8px 22px rgba(49, 46, 129, 0.08);
-  font-weight: 800;
-  letter-spacing: 0;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease, color 0.22s ease;
+  display: none;
 }
 
 .taskdone-filter-trigger:hover {
@@ -3225,20 +3329,18 @@ button,
 
 .taskdone-filter-panel {
   width: 100%;
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
-  transform: translateY(-8px) scale(0.985);
-  transform-origin: top right;
-  transition: max-height 0.34s ease, opacity 0.24s ease, transform 0.3s ease;
+  max-height: none;
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
+  transform: none;
 }
 
 .taskdone-filter-shell.open .taskdone-filter-panel {
-  max-height: 18rem;
+  max-height: none;
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0) scale(1);
+  transform: none;
 }
 
 .taskdone-filter-panel .taskdone-filter-card {
@@ -3247,14 +3349,14 @@ button,
 
 @media (max-width: 900px) {
   .taskdone-filter-shell {
-    justify-items: stretch;
+    display: block;
   }
 
   .taskdone-filter-trigger {
-    justify-self: end;
+    display: none;
   }
 
   .taskdone-filter-shell.open .taskdone-filter-panel {
-    max-height: 32rem;
+    max-height: none;
   }
 }

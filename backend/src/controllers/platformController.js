@@ -14,6 +14,9 @@ import {
   listCompanies as listCompaniesService,
   listCompanyRoles as listCompanyRolesService,
   listCompanyUsers as listCompanyUsersService,
+  getPlatformNotificationSettings as getPlatformNotificationSettingsService,
+  savePlatformNotificationSettings as savePlatformNotificationSettingsService,
+  sendPlatformNotificationTestEmail as sendPlatformNotificationTestEmailService,
   listRenewalsData,
   listSubscriptions,
   rejectPlanRequest,
@@ -128,4 +131,16 @@ export const platformUserCredentials = asyncHandler(async (req, res) => {
 
 export const platformUserUpdate = asyncHandler(async (req, res) => {
   res.json(await updatePlatformUser(req.params.userId, req.body || {}, req.user || null));
+});
+
+export const platformNotificationSettings = asyncHandler(async (_req, res) => {
+  res.json(await getPlatformNotificationSettingsService(_req.params.companyId));
+});
+
+export const platformNotificationSettingsUpdate = asyncHandler(async (req, res) => {
+  res.json(await savePlatformNotificationSettingsService(req.params.companyId, req.body || {}, req.user || null));
+});
+
+export const platformNotificationTestEmail = asyncHandler(async (req, res) => {
+  res.json(await sendPlatformNotificationTestEmailService(req.params.companyId, req.body || {}, req.user || null));
 });

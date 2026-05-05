@@ -4,8 +4,10 @@ import { PlanRequest } from '../models/PlanRequest.js';
 import { PlatformAudit } from '../models/PlatformAudit.js';
 import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
+import { AppSetting } from '../models/AppSetting.js';
 import { ApiError } from '../utils/ApiError.js';
 import { recordPlatformAudit } from './platformAuditService.js';
+import { resetMailTransportCache, sendEmail } from './notificationService.js';
 
 const PLAN_CATALOG = {
   Basic: { monthlyRate: 4999, maxUsers: 25 },
@@ -58,6 +60,11 @@ const DEFAULT_ROLE_DEFINITIONS = [
     isSystemRole: true
   }
 ];
+
+const NOTIFICATION_SETTINGS_KEY = 'platformNotificationSettings';
+function getCompanyNotificationKey(companyId) {
+  return `${NOTIFICATION_SETTINGS_KEY}:${String(companyId || '').trim()}`;
+}
 
 function normalizePlanName(planName = 'Basic') {
   const value = String(planName || 'Basic').trim();
@@ -742,6 +749,183 @@ export async function toggleUserStatusGlobal(userId, actor = null) {
   return { success: true, status: nextStatus };
 }
 
+export async function updateUserEmailGlobal(userId, email, actor = null) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) {
+    throw new ApiError(400, 'email is required');
+  }
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(normalizedEmail)) {
+    throw new ApiError(400, 'Invalid email format');
+  }
+
+  const user = await User.findOne({ userId }).lean();
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  const duplicate = await User.findOne({ email: normalizedEmail, _id: { $ne: user._id } }).lean();
+  if (duplicate) {
+    throw new ApiError(409, 'Email already exists for another user');
+  }
+
+  await User.updateOne({ _id: user._id }, { email: normalizedEmail });
+  await recordPlatformAudit({
+    actor,
+    action: 'Updated user receiver email',
+    entityType: 'User',
+    entityId: userId,
+    targetCompanyId: user.companyId || null,
+    details: { previousEmail: user.email, nextEmail: normalizedEmail }
+  });
+  return { success: true, message: 'User email updated', email: normalizedEmail };
+}
+
+function sanitizeNotificationSettings(input = {}, preservePassword = '') {
+  const senderIn = input.sender && typeof input.sender === 'object' ? input.sender : {};
+  const smtpIn = input.smtp && typeof input.smtp === 'object' ? input.smtp : {};
+  const secure = smtpIn.secure === true || Number(smtpIn.port) === 465;
+  const smtpPassword = String(smtpIn.password || '').trim() || String(preservePassword || '').trim();
+  return {
+    sender: {
+      fromName: String(senderIn.fromName || '').trim(),
+      fromEmail: String(senderIn.fromEmail || '').trim().toLowerCase(),
+      replyTo: String(senderIn.replyTo || '').trim().toLowerCase()
+    },
+    smtp: {
+      host: String(smtpIn.host || '').trim(),
+      port: Number(smtpIn.port || 587),
+      secure,
+      user: String(smtpIn.user || '').trim(),
+      password: smtpPassword
+    },
+    notifications: {
+      assignment: input.notifications?.assignment !== false,
+      submission: input.notifications?.submission !== false,
+      approval: input.notifications?.approval !== false,
+      rework: input.notifications?.rework !== false
+    },
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function toSafeNotificationSettings(value = {}) {
+  const normalized = sanitizeNotificationSettings(value);
+  return {
+    ...normalized,
+    smtp: {
+      ...normalized.smtp,
+      password: normalized.smtp.password ? '********' : ''
+    }
+  };
+}
+
+async function getNotificationSettingsByCompanyId(companyId) {
+  const row = await AppSetting.findOne({ key: getCompanyNotificationKey(companyId) }).select('value updatedAt').lean();
+  if (!row?.value) {
+    return {
+      success: true,
+      settings: {
+        sender: { fromName: '', fromEmail: '', replyTo: '' },
+        smtp: { host: '', port: 587, secure: false, user: '', password: '' },
+        notifications: { assignment: true, submission: true, approval: true, rework: true },
+        updatedAt: null
+      }
+    };
+  }
+  return { success: true, settings: toSafeNotificationSettings(row.value) };
+}
+
+async function saveNotificationSettingsByCompanyId(companyId, payload = {}, actor = null) {
+  if (!companyId) {
+    throw new ApiError(400, 'companyId is required');
+  }
+  const key = getCompanyNotificationKey(companyId);
+  const existing = await AppSetting.findOne({ key }).select('value').lean();
+  const preservePassword = existing?.value?.smtp?.password || '';
+  const next = sanitizeNotificationSettings(payload, preservePassword);
+
+  if (!next.sender.fromEmail || !next.smtp.host || !next.smtp.user || !next.smtp.password) {
+    throw new ApiError(400, 'Sender email and SMTP host/user/password are required');
+  }
+
+  await AppSetting.findOneAndUpdate(
+    { key },
+    { key, value: next, updatedBy: actor?._id || null },
+    { upsert: true, new: true }
+  );
+  resetMailTransportCache();
+  await recordPlatformAudit({
+    actor,
+    action: 'Updated company notification settings',
+    entityType: 'Settings',
+    entityId: key,
+    targetCompanyId: companyId,
+    details: {
+      senderFromEmail: next.sender.fromEmail,
+      smtpHost: next.smtp.host,
+      smtpPort: next.smtp.port
+    }
+  });
+  return { success: true, settings: toSafeNotificationSettings(next) };
+}
+
+async function sendNotificationTestEmailByCompanyId(companyId, payload = {}, actor = null) {
+  if (!companyId) {
+    throw new ApiError(400, 'companyId is required');
+  }
+  const to = String(payload.to || actor?.email || '').trim().toLowerCase();
+  if (!to) {
+    throw new ApiError(400, 'Recipient test email is required');
+  }
+  const result = await sendEmail({
+    to,
+    companyId,
+    subject: 'TaskEasy Notification Test Mail',
+    html: '<div><h3>TaskEasy Mail Test</h3><p>Your sender and SMTP settings are working.</p></div>',
+    text: 'TaskEasy Mail Test: sender and SMTP settings are working.'
+  });
+  if (!result.success) {
+    throw new ApiError(400, result.error || 'Failed to send test email');
+  }
+  await recordPlatformAudit({
+    actor,
+    action: 'Sent company notification test email',
+    entityType: 'Settings',
+    entityId: getCompanyNotificationKey(companyId),
+    targetCompanyId: companyId,
+    details: { to }
+  });
+  return { success: true, message: 'Test email sent successfully', to };
+}
+
+export async function getPlatformNotificationSettings(companyId) {
+  return getNotificationSettingsByCompanyId(companyId);
+}
+
+export async function savePlatformNotificationSettings(companyId, payload = {}, actor = null) {
+  return saveNotificationSettingsByCompanyId(companyId, payload, actor);
+}
+
+export async function sendPlatformNotificationTestEmail(companyId, payload = {}, actor = null) {
+  return sendNotificationTestEmailByCompanyId(companyId, payload, actor);
+}
+
+export async function getSuperAdminNotificationSettings(actor) {
+  if (!actor?.companyId) throw new ApiError(400, 'Company context missing');
+  return getNotificationSettingsByCompanyId(actor.companyId);
+}
+
+export async function saveSuperAdminNotificationSettings(payload = {}, actor = null) {
+  if (!actor?.companyId) throw new ApiError(400, 'Company context missing');
+  return saveNotificationSettingsByCompanyId(actor.companyId, payload, actor);
+}
+
+export async function sendSuperAdminNotificationTestEmail(payload = {}, actor = null) {
+  if (!actor?.companyId) throw new ApiError(400, 'Company context missing');
+  return sendNotificationTestEmailByCompanyId(actor.companyId, payload, actor);
+}
+
 export async function updatePlatformUser(userId, payload = {}, actor = null) {
   const operation = String(payload.operation || '').trim();
   if (operation === 'viewCredentials') {
@@ -755,6 +939,9 @@ export async function updatePlatformUser(userId, payload = {}, actor = null) {
   }
   if (operation === 'changeRole') {
     return changeUserRoleGlobal(userId, payload, actor);
+  }
+  if (operation === 'updateEmail') {
+    return updateUserEmailGlobal(userId, payload.email, actor);
   }
   throw new ApiError(400, 'Invalid platform user operation');
 }

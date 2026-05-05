@@ -1,5 +1,10 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { runGasMethod } from '../services/gasCompatService.js';
+import {
+  getSuperAdminNotificationSettings,
+  saveSuperAdminNotificationSettings,
+  sendSuperAdminNotificationTestEmail
+} from '../services/platformAdminService.js';
 
 export const projects = asyncHandler(async (req, res) => {
   const data = await runGasMethod('getProjectsWithStatus', [], { user: req.user });
@@ -41,4 +46,16 @@ export const saveFmsConnector = asyncHandler(async (req, res) => {
   const connectorPayload = req.body?.sheetId ? { sheetId: req.body.sheetId, range: req.body.range } : req.body;
   const result = await runGasMethod('saveFmsSheetSetting', [connectorPayload], { user: req.user });
   res.json({ success: result === 'success', message: result });
+});
+
+export const adminNotificationSettingsGet = asyncHandler(async (req, res) => {
+  res.json(await getSuperAdminNotificationSettings(req.user || null));
+});
+
+export const adminNotificationSettingsSave = asyncHandler(async (req, res) => {
+  res.json(await saveSuperAdminNotificationSettings(req.body || {}, req.user || null));
+});
+
+export const adminNotificationSettingsTest = asyncHandler(async (req, res) => {
+  res.json(await sendSuperAdminNotificationTestEmail(req.body || {}, req.user || null));
 });

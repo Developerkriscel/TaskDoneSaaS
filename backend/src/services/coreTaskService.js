@@ -7,6 +7,7 @@ import { User } from '../models/User.js';
 import { Project } from '../models/Project.js';
 import { MisHistory } from '../models/MisHistory.js';
 import { AppSetting } from '../models/AppSetting.js';
+import { FmsFlow } from '../models/FmsFlow.js';
 import { calculateDelay, getDateRangeYmd, isDateInRange } from '../utils/dateFilters.js';
 import { withLock } from '../utils/mutex.js';
 import { fetchFmsRows, markFmsDoneByRow } from './fmsSheetsService.js';
@@ -100,7 +101,7 @@ async function getDashboardPageData(userName, userRole, filters = {}, context = 
   const visibleUserIds = new Set(visibleUsers.map((u) => String(u._id)));
   const visibleUserIdList = [...visibleUserIds];
 
-  const [delegations, workRequests, checklists] = await Promise.all([
+  const [delegations, workRequests, checklists, fmsRows] = await Promise.all([
     DelegationTask.find({ delegatedToUser: { $in: visibleUserIdList } })
       .select('description project targetDate status onTimeStatus totalDelays delay priority delegatedToUser createdAt completedDate approvalDate')
       .populate('project', 'name')
@@ -115,7 +116,8 @@ async function getDashboardPageData(userName, userRole, filters = {}, context = 
       .select('description project planDate actualDate approvalStatus onTimeStatus totalDelay user')
       .populate('project', 'name')
       .populate('user', 'name')
-      .lean()
+      .lean(),
+    getFmsTasksForEmployee(userName, userRole, { ...filters, status: 'All Statuses' }, context)
   ]);
 
   const metrics = {
@@ -222,6 +224,45 @@ async function getDashboardPageData(userName, userRole, filters = {}, context = 
         priority: 'Medium',
         status: c.approvalStatus
       });
+    }
+  }
+
+  const fmsSummaryMap = {};
+  for (const f of fmsRows || []) {
+    if (!matchesEmployeeFilter(f.who, filters)) continue;
+    if (!matchesCommonFilters({ ...f, status: f.status }, filters, 'plannedDate')) continue;
+
+    const fmsName = String(f.fmsName || 'Others').trim() || 'Others';
+    if (!fmsSummaryMap[fmsName]) {
+      fmsSummaryMap[fmsName] = { name: fmsName, pending: 0, completed: 0, total: 0 };
+    }
+
+    metrics.fms.total += 1;
+    fmsSummaryMap[fmsName].total += 1;
+
+    const done = clean(f.status) === 'completed';
+    if (done) {
+      metrics.fms.done += 1;
+      fmsSummaryMap[fmsName].completed += 1;
+    } else {
+      metrics.fms.pending += 1;
+      fmsSummaryMap[fmsName].pending += 1;
+      feed.push({
+        type: 'FMS',
+        id: String(f.rowId || ''),
+        description: f.taskName || f.fmsName || 'FMS Task',
+        project: f.fmsName || '',
+        targetDate: f.plannedDate || '',
+        priority: 'Medium',
+        status: f.status
+      });
+    }
+
+    if (done && clean(f.onTimeStatus) === 'late') {
+      metrics.fms.tasksDelayed += 1;
+      metrics.fms.totalDelayDays += Number(f.delayDays || 0);
+    } else if (done) {
+      metrics.fms.doneOnTime += 1;
     }
   }
 
@@ -335,7 +376,7 @@ async function getDashboardPageData(userName, userRole, filters = {}, context = 
     priorityTasks: feed.slice(0, 10),
     trendData: { labels: trendLabels, createdData, completedData },
     projectStatus,
-    fmsChartData: [],
+    fmsChartData: Object.values(fmsSummaryMap),
     teamPriorityTasks: userRole === 'Employee' ? [] : feed.slice(0, 10)
   };
 }
@@ -364,6 +405,7 @@ async function getDelegatedTasksForEmployee(userName, filters = {}, context = {}
       project: x.project?.name || '',
       targetDate: x.targetDate,
       status: x.status,
+      taskStatus: x.status,
       priority: x.priority,
       reworkRemark: x.reworkRemark || '',
       attachmentUrl: x.attachmentUrls || []
@@ -401,6 +443,8 @@ async function getChecklistTasksForEmployee(userName, filters = {}, context = {}
   const user = await getUserByName(userName, context);
   if (!user) return [];
 
+  await ensureChecklistTasksForMasters([user._id], context);
+
   const rows = await ChecklistTask.find({ user: user._id })
     .populate('project', 'name')
     .populate('delegatedByUser', 'name')
@@ -414,9 +458,12 @@ async function getChecklistTasksForEmployee(userName, filters = {}, context = {}
       taskId: x.legacyTaskId || x._id.toString(),
       delegatedBy: x.delegatedByUser?.name || '',
       taskDescription: x.description,
+      description: x.description,
       project: x.project?.name || '',
       planDate: x.planDate,
+      frequency: x.frequency || '',
       status: x.approvalStatus,
+      remarks: x.remarks || '',
       attReq: x.attachmentRequired
     }));
 }
@@ -466,12 +513,15 @@ async function getTasksForApproval(userName, userRole, filters = {}, context = {
   const visibleUserIds = new Set(visibleUsers.map((u) => String(u._id)));
   const visibleUserIdList = [...visibleUserIds];
 
-  const [delegations, workRequests] = await Promise.all([
+  const [delegations, workRequests, checklists] = await Promise.all([
     DelegationTask.find({ status: 'Send for Approval', delegatedToUser: { $in: visibleUserIdList } })
       .populate('delegatedByUser delegatedToUser project', 'name')
       .lean(),
     WorkRequest.find({ status: 'Send for Approval', requestForUser: { $in: visibleUserIdList } })
       .populate('requestedByUser requestForUser project', 'name')
+      .lean(),
+    ChecklistTask.find({ approvalStatus: 'Send for Approval', user: { $in: visibleUserIdList } })
+      .populate('delegatedByUser user project', 'name')
       .lean()
   ]);
 
@@ -493,10 +543,7 @@ async function getTasksForApproval(userName, userRole, filters = {}, context = {
 
   const workRows = workRequests
     .filter((x) => visibleUserIds.has(String(x.requestForUser?._id || '')))
-    .filter((x) => {
-      if (userRole === 'Super Admin') return true;
-      return clean(x.requestedByUser?.name) === clean(userName);
-    })
+    .filter((x) => isUserVisible(x.requestForUser?.name, visibleNames, userRole, userName))
     .filter((x) => matchesCommonFilters({ ...x, status: x.status }, filters, 'deadline'))
     .map((x) => ({
       requestId: x.legacyRequestId || x._id.toString(),
@@ -511,10 +558,32 @@ async function getTasksForApproval(userName, userRole, filters = {}, context = {
       doerAttachments: x.attachmentByDoer || []
     }));
 
-  return { delegations: delegationRows, workRequests: workRows, checklists: [] };
+  const checklistRows = checklists
+    .filter((x) => visibleUserIds.has(String(x.user?._id || '')))
+    .filter((x) => isUserVisible(x.user?.name, visibleNames, userRole, userName))
+    .filter((x) => matchesCommonFilters({ ...x, status: x.approvalStatus }, filters, 'planDate'))
+    .map((x) => ({
+      taskId: x.legacyTaskId || x._id.toString(),
+      delegatedBy: x.delegatedByUser?.name || 'System',
+      taskCompletedBy: x.user?.name || '',
+      userName: x.user?.name || '',
+      taskDescription: x.description,
+      description: x.description,
+      project: x.project?.name || '',
+      status: x.approvalStatus,
+      approvalDate: x.actualDate || x.updatedAt,
+      completionDate: x.actualDate,
+      actionDate: x.actualDate,
+      planDate: x.planDate,
+      doerRemarks: x.remarks || '',
+      doerAttachments: x.attachmentUrls || [],
+      isRework: clean(x.remarks).includes('rework required')
+    }));
+
+  return { delegations: delegationRows, workRequests: workRows, checklists: checklistRows };
 }
 
-async function markChecklistTaskDone(taskId, planDate, remarks) {
+async function markChecklistTaskDone(taskId, planDate, remarks, filesData = []) {
   return withLock(`checklist:${taskId}`, async () => {
     const query =
       String(taskId).length === 24
@@ -526,24 +595,29 @@ async function markChecklistTaskDone(taskId, planDate, remarks) {
 
     row.actualDate = new Date();
     row.remarks = remarks || row.remarks;
+    if (Array.isArray(filesData) && filesData.length > 0) {
+      row.attachmentUrls = filesData
+        .map((file) => file?.url || file?.fileUrl || file?.fileName)
+        .filter(Boolean);
+    }
     const { delay, status } = calculateDelay(row.planDate, row.actualDate);
     row.totalDelay = delay;
     row.onTimeStatus = status;
-    row.approvalStatus = 'Completed';
+    row.approvalStatus = 'Send for Approval';
     await row.save();
 
     return 'success';
   });
 }
 
-async function markChecklistTasksDoneBulk(tasksToUpdate, remarks) {
+async function markChecklistTasksDoneBulk(tasksToUpdate, remarks, filesData = []) {
   if (!Array.isArray(tasksToUpdate) || tasksToUpdate.length === 0) {
     return 'No tasks selected.';
   }
 
   let done = 0;
   for (const task of tasksToUpdate) {
-    const result = await markChecklistTaskDone(task.taskId, task.planDate, remarks);
+    const result = await markChecklistTaskDone(task.taskId, task.planDate, remarks, filesData);
     if (result === 'success') done += 1;
   }
 
@@ -780,15 +854,22 @@ async function saveChecklistTask(taskData, userName, context = {}) {
   const rows = Array.isArray(taskData) ? taskData : [taskData];
   if (!rows.length) return 'No checklist tasks to save.';
 
-  const normalizedRows = rows.map((t) => ({
-    employee: t.employee || t.employeeName || t.delegatedTo || userName,
-    project: t.project || t.projectName || '',
-    description: t.description || t.taskDescription || '',
-    frequency: t.frequency || t.taskFrequency || 'Daily',
-    startDate: t.startDate,
-    dayDate: t.dayDate || t.dayOrDate || '',
-    attReq: typeof t.attReq !== 'undefined' ? t.attReq : t.attachmentRequired
-  }));
+  const normalizedRows = rows.flatMap((t) => {
+    const rawEmployees = t.employee ?? t.employeeName ?? t.delegatedTo ?? userName;
+    const employees = Array.isArray(rawEmployees)
+      ? rawEmployees.filter((item) => String(item || '').trim())
+      : [rawEmployees];
+
+    return employees.map((employee) => ({
+      employee,
+      project: t.project || t.projectName || '',
+      description: t.description || t.taskDescription || '',
+      frequency: t.frequency || t.taskFrequency || 'Daily',
+      startDate: t.startDate,
+      dayDate: t.dayDate || t.dayOrDate || '',
+      attReq: typeof t.attReq !== 'undefined' ? t.attReq : t.attachmentRequired
+    }));
+  });
 
   const employeeNames = [...new Set(normalizedRows.map((r) => r.employee).filter(Boolean))];
   const targets = await User.find({ ...companyScope, name: { $in: employeeNames } }).select('_id name').lean();
@@ -809,6 +890,8 @@ async function saveChecklistTask(taskData, userName, context = {}) {
 
   const last = await ChecklistWorkMaster.findOne().sort({ legacyTaskId: -1 }).lean();
   let nextId = Number(last?.legacyTaskId || 0) + 1;
+  const lastTask = await ChecklistTask.findOne().sort({ legacyTaskId: -1 }).lean();
+  let nextTaskId = Number(lastTask?.legacyTaskId || 0) + 1;
 
   const inserts = normalizedRows
     .map((row) => {
@@ -832,7 +915,70 @@ async function saveChecklistTask(taskData, userName, context = {}) {
 
   if (!inserts.length) return 'No valid checklist tasks found.';
   await ChecklistWorkMaster.insertMany(inserts);
+
+  const immediateTasks = inserts.map((row) => ({
+    legacyTaskId: nextTaskId++,
+    user: row.delegatedToUser,
+    delegatedByUser: row.delegatedByUser,
+    description: row.taskDescription,
+    frequency: row.taskFrequency,
+    project: row.project,
+    planDate: row.startDate || new Date(),
+    attachmentRequired: row.attachmentRequired || '',
+    sourceType: 'Manual',
+    approvalStatus: 'Pending'
+  }));
+
+  if (immediateTasks.length > 0) {
+    await ChecklistTask.insertMany(immediateTasks);
+  }
+
   return 'success';
+}
+
+async function ensureChecklistTasksForMasters(userIds = [], context = {}) {
+  const targetIds = [...new Set((userIds || []).map((id) => String(id || '')).filter(Boolean))];
+  if (!targetIds.length) return 0;
+
+  const masters = await ChecklistWorkMaster.find({
+    isActive: true,
+    delegatedToUser: { $in: targetIds }
+  }).lean();
+
+  if (!masters.length) return 0;
+
+  let lastTask = await ChecklistTask.findOne().sort({ legacyTaskId: -1 }).lean();
+  let nextTaskId = Number(lastTask?.legacyTaskId || 0) + 1;
+  const inserts = [];
+
+  for (const master of masters) {
+    const planDate = master.startDate || new Date();
+    const exists = await ChecklistTask.exists({
+      user: master.delegatedToUser,
+      description: master.taskDescription,
+      project: master.project || null,
+      planDate
+    });
+
+    if (exists) continue;
+
+    inserts.push({
+      legacyTaskId: nextTaskId++,
+      user: master.delegatedToUser,
+      delegatedByUser: master.delegatedByUser,
+      description: master.taskDescription,
+      frequency: master.taskFrequency,
+      project: master.project || null,
+      planDate,
+      attachmentRequired: master.attachmentRequired || '',
+      sourceType: 'Manual',
+      approvalStatus: 'Pending'
+    });
+  }
+
+  if (!inserts.length) return 0;
+  await ChecklistTask.insertMany(inserts);
+  return inserts.length;
 }
 
 function isTaskDueToday(startDate, frequency, today = new Date()) {
@@ -1014,7 +1160,34 @@ async function updateStatusWrapper(type, id, status, remarks, planDate) {
   }
 
   if (normalizedType === 'checklist') {
-    return markChecklistTaskDone(id, planDate, remarks);
+    return withLock(`checklist:${id}`, async () => {
+      const query =
+        String(id).length === 24
+          ? { _id: id }
+          : { legacyTaskId: Number(id), ...(planDate ? { planDate: new Date(planDate) } : {}) };
+
+      const row = await ChecklistTask.findOne(query);
+      if (!row) return 'Task ID not found.';
+
+      if (status === 'Completed') {
+        row.actualDate = row.actualDate || new Date();
+        row.remarks = remarks || row.remarks;
+        const { delay, status: onTime } = calculateDelay(row.planDate, row.actualDate);
+        row.totalDelay = delay;
+        row.onTimeStatus = onTime;
+        row.approvalStatus = 'Completed';
+      } else if (status === 'Rework') {
+        row.actualDate = null;
+        row.approvalStatus = 'Rework';
+        row.remarks = `Rework Required: ${remarks || ''}`;
+      } else {
+        row.approvalStatus = status;
+        row.remarks = remarks || row.remarks;
+      }
+
+      await row.save();
+      return 'success';
+    });
   }
 
   return 'Invalid type.';
@@ -1185,8 +1358,10 @@ async function getKraMasterData(userName, userRole, filters = {}, context = {}) 
       delegatedBy: x.delegatedByUser?.name || '',
       delegatedTo: x.delegatedToUser?.name || '',
       taskDescription: x.taskDescription,
+      description: x.taskDescription,
       project: x.project?.name || '',
       taskFrequency: x.taskFrequency,
+      frequency: x.taskFrequency,
       startDate: x.startDate,
       attReq: x.attachmentRequired || ''
     }));
@@ -1303,14 +1478,60 @@ async function getEmployeePerformanceReport(userName, userRole, filters = {}, co
 }
 
 async function getFmsTasksForEmployee(userName, userRole, filters = {}, context = {}) {
-  const rows = await fetchFmsRows();
-  if (!rows.length) return [];
+  let rows = [];
+  try {
+    rows = await fetchFmsRows();
+  } catch {
+    rows = [];
+  }
 
   const members = await getTeamMembersWithManager(userName, userRole, context);
   const visible = new Set(members.map(clean));
 
   const isDone = (x) => Boolean(x.actualDate && String(x.actualDate).trim() !== '');
   const wantedStatus = clean(filters.status || '');
+
+  // Fallback: if sheet rows are empty, derive pending/completed work from FMS flow steps.
+  if (!rows.length) {
+    const scope = getCompanyScope(context);
+    const flows = await FmsFlow.find({ ...scope }).select('name steps createdAt').lean();
+    const now = Date.now();
+    const fallbackRows = [];
+
+    for (const flow of flows) {
+      for (const step of flow.steps || []) {
+        const assignee = String(step.assignedUserName || step.completedByName || '').trim();
+        if (!assignee) continue;
+        const normalizedAssignee = clean(assignee);
+        if (userRole !== 'Super Admin' && !(normalizedAssignee === clean(userName) || visible.has(normalizedAssignee))) {
+          continue;
+        }
+
+        const completedAt = step.completedAt ? new Date(step.completedAt) : null;
+        const dueAt = step.dueAt ? new Date(step.dueAt) : null;
+        const assignedAt = step.assignedAt ? new Date(step.assignedAt) : null;
+        const status = clean(step.status);
+        const done = status === 'completed' || Boolean(completedAt);
+        const late = Boolean(done && dueAt && completedAt && completedAt.getTime() > dueAt.getTime());
+        const delayDays = late ? Math.max(0, Math.ceil((completedAt.getTime() - dueAt.getTime()) / 86400000)) : 0;
+
+        fallbackRows.push({
+          rowId: `${flow._id}:${step.sequence}`,
+          who: assignee,
+          fmsName: flow.name || 'FMS',
+          taskName: step.title || `Step ${step.sequence || ''}`.trim(),
+          plannedDate: dueAt || assignedAt || flow.createdAt,
+          actualDate: completedAt,
+          delayDays,
+          onTimeStatus: done ? (late ? 'Late' : 'On Time') : '',
+          formLink: '',
+          status: done ? 'Completed' : 'Pending'
+        });
+      }
+    }
+
+    rows = fallbackRows;
+  }
 
   return rows
     .filter((x) => {

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useAuth } from '../store/authContext.jsx';
 import { platformApi } from '../services/api.js';
+import { formatDate, formatDateTime } from '../utils/dateFormat.js';
 
-const ADMIN_VIEWS = ['overview', 'renewals', 'plan-requests', 'audits', 'subscriptions', 'companies', 'company-details'];
+const ADMIN_VIEWS = ['overview', 'renewals', 'plan-requests', 'audits', 'subscriptions', 'companies', 'company-details', 'notifications'];
 
 function MenuIcon() {
   return (
@@ -142,13 +143,6 @@ function getGreeting() {
   return 'Good Evening';
 }
 
-function formatDate(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString();
-}
-
 function nextYearIsoDate() {
   const now = new Date();
   now.setFullYear(now.getFullYear() + 1);
@@ -221,6 +215,11 @@ export default function PlatformPage() {
   const [activeCompanyId, setActiveCompanyId] = useState('');
   const [activeCompanyName, setActiveCompanyName] = useState('');
   const [companyDetails, setCompanyDetails] = useState({ company: null, usage: null, users: [], roles: [] });
+  const [notificationSettings, setNotificationSettings] = useState({
+    sender: { fromName: '', fromEmail: '', replyTo: '' },
+    smtp: { host: '', port: 587, secure: false, user: '', password: '' },
+    notifications: { assignment: true, submission: true, approval: true, rework: true }
+  });
 
   const metricCards = useMemo(() => [
     { label: 'Total Companies', value: overview.totalCompanies },
@@ -304,8 +303,21 @@ export default function PlatformPage() {
     });
   }
 
+  async function loadNotificationSettings() {
+    if (!activeCompanyId) {
+      setError('Select a company first from Companies or Company Details.');
+      return;
+    }
+    await withLoader(async () => {
+      const data = await platformApi.getCompanyNotificationSettings(activeCompanyId);
+      if (data?.settings) {
+        setNotificationSettings(data.settings);
+      }
+    });
+  }
+
   function applySaasRoleVisibility(role, isAppAdmin) {
-    const ids = ['overview-nav', 'renewals-nav', 'plan-requests-nav', 'audits-nav', 'subscriptions-nav', 'companies-nav', 'company-details-nav'];
+    const ids = ['overview-nav', 'renewals-nav', 'plan-requests-nav', 'audits-nav', 'subscriptions-nav', 'companies-nav', 'company-details-nav', 'notifications-nav'];
     ids.forEach((id) => document.getElementById(id)?.classList.add('hidden'));
 
     if (isAppAdmin) {
@@ -329,6 +341,7 @@ export default function PlatformPage() {
     if (viewName === 'company-details') {
       return loadCompanyDetails(selectedCompanyId || activeCompanyId);
     }
+    if (viewName === 'notifications') return loadNotificationSettings();
     return null;
   }
 
@@ -611,6 +624,74 @@ export default function PlatformPage() {
     }
   }
 
+  async function promptUpdateUserEmail(userId, existingEmail = '') {
+    const result = await Swal.fire({
+      title: `Edit Receiver Email: ${userId}`,
+      html: `<div><label class="form-label">Receiver Email</label><input id="swal-user-email" class="swal2-input form-input" type="email" value="${existingEmail || ''}" /></div>`,
+      showCancelButton: true,
+      confirmButtonText: 'Save Email',
+      preConfirm: () => {
+        const email = String(document.getElementById('swal-user-email')?.value || '').trim();
+        if (!email) {
+          Swal.showValidationMessage('Receiver email is required');
+          return false;
+        }
+        return email;
+      }
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await platformApi.updatePlatformUser(userId, { operation: 'updateEmail', email: result.value });
+      await loadCompanyDetails(activeCompanyId);
+    } catch (err) {
+      setError(err?.response?.data?.error || err.message || 'Failed to update user email');
+    }
+  }
+
+  async function saveNotificationSettings() {
+    if (!activeCompanyId) {
+      setError('Select a company first.');
+      return;
+    }
+    try {
+      const data = await platformApi.updateCompanyNotificationSettings(activeCompanyId, notificationSettings);
+      if (data?.settings) {
+        setNotificationSettings(data.settings);
+      }
+      await Swal.fire('Saved', 'Notification sender settings updated.', 'success');
+    } catch (err) {
+      setError(err?.response?.data?.error || err.message || 'Failed to save notification settings');
+    }
+  }
+
+  async function sendTestEmail() {
+    if (!activeCompanyId) {
+      setError('Select a company first.');
+      return;
+    }
+    const result = await Swal.fire({
+      title: 'Send Test Mail',
+      html: '<div><label class="form-label">Recipient Email</label><input id="swal-test-email" class="swal2-input form-input" type="email" /></div>',
+      showCancelButton: true,
+      confirmButtonText: 'Send',
+      preConfirm: () => {
+        const email = String(document.getElementById('swal-test-email')?.value || '').trim();
+        if (!email) {
+          Swal.showValidationMessage('Recipient email is required');
+          return false;
+        }
+        return email;
+      }
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await platformApi.sendCompanyNotificationTestEmail(activeCompanyId, result.value);
+      await Swal.fire('Sent', `Test mail sent to ${result.value}`, 'success');
+    } catch (err) {
+      setError(err?.response?.data?.error || err.message || 'Failed to send test email');
+    }
+  }
+
   useEffect(() => {
     window.applySaasRoleVisibility = applySaasRoleVisibility;
     window.showView = showView;
@@ -712,6 +793,12 @@ export default function PlatformPage() {
                 <button type="button" className={`taskdone-nav-link ${currentView === 'company-details' ? 'active' : ''}`} data-view="company-details" onClick={() => showView('company-details')}>
                   <span className="taskdone-nav-icon"><DetailIcon /></span>
                   <span className="taskdone-nav-label">Company Details</span>
+                </button>
+              </li>
+              <li id="notifications-nav" className="hidden">
+                <button type="button" className={`taskdone-nav-link ${currentView === 'notifications' ? 'active' : ''}`} data-view="notifications" onClick={() => showView('notifications')}>
+                  <span className="taskdone-nav-icon"><QueueIcon /></span>
+                  <span className="taskdone-nav-label">Notifications</span>
                 </button>
               </li>
             </ul>
@@ -859,7 +946,7 @@ export default function PlatformPage() {
                         <td className="col-wrap">{row.requestedPlan || '-'}</td>
                         <td className="col-wrap">{row.requestedByEmail || '-'}</td>
                         <td className="col-status"><span className={row.status === 'Approved' ? 'status-badge status-active' : row.status === 'Rejected' ? 'status-badge status-in-active' : 'status-badge status-pending'}>{row.status}</span></td>
-                        <td className="col-date">{formatDate(row.createdAt)}</td>
+                        <td className="col-date">{formatDateTime(row.createdAt)}</td>
                         <td className="row-actions col-action">
                           <button type="button" className="platform-table-btn" disabled={row.status !== 'Pending'} onClick={() => openApprovePlanModal(row)}>Approve</button>
                           <button type="button" className="platform-table-btn" disabled={row.status !== 'Pending'} onClick={() => rejectPlan(row._id)}>Reject</button>
@@ -903,7 +990,7 @@ export default function PlatformPage() {
                         <td className="col-wrap">{log.actorEmail || log.actorName || '-'}</td>
                         <td className="col-wrap">{log.targetCompanyName || '-'}</td>
                         <td className="col-status"><span className={log.status === 'Blocked' ? 'status-badge status-in-active' : 'status-badge status-active'}>{log.status || 'Done'}</span></td>
-                        <td className="col-date">{formatDate(log.createdAt)}</td>
+                        <td className="col-date">{formatDateTime(log.createdAt)}</td>
                         <td className="col-wrap"><pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{JSON.stringify(log.details || {}, null, 0)}</pre></td>
                       </tr>
                     ))}
@@ -1016,7 +1103,10 @@ export default function PlatformPage() {
                   <h3><span className="section-title-icon"><DetailIcon /></span>Company Details</h3>
                   <p>{activeCompanyName || 'Select a company to inspect tenant internals.'}</p>
                 </div>
-                <button type="button" className="platform-primary-btn" onClick={() => loadCompanyDetails(activeCompanyId)}>Refresh Details</button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="button" className="platform-primary-btn" onClick={() => showView('notifications')}>Configure Sender</button>
+                  <button type="button" className="platform-primary-btn" onClick={() => loadCompanyDetails(activeCompanyId)}>Refresh Details</button>
+                </div>
               </div>
 
               <div className="platform-stats-layout taskdone-summary-layout" style={{ marginBottom: '1rem' }}>
@@ -1052,6 +1142,7 @@ export default function PlatformPage() {
                         <td className="col-status"><span className={row.status === 'Active' ? 'status-badge status-active' : 'status-badge status-in-active'}>{row.status}</span></td>
                         <td className="row-actions col-action">
                           <button type="button" className="platform-table-btn" onClick={() => viewCredentials(row.userId)}>Credentials</button>
+                          <button type="button" className="platform-table-btn" onClick={() => promptUpdateUserEmail(row.userId, row.email || '')}>Email</button>
                           <button type="button" className="platform-table-btn" onClick={() => promptResetPassword(row.userId)}>Reset</button>
                           <button type="button" className="platform-table-btn" onClick={() => promptChangeRole(row.userId, activeCompanyId)}>Role</button>
                           <button type="button" className="platform-table-btn" onClick={() => toggleUser(row.userId, activeCompanyId)}>Status</button>
@@ -1060,6 +1151,81 @@ export default function PlatformPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="notifications" className={`content-view taskdone-dashboard-content ${currentView === 'notifications' ? '' : 'hidden'}`}>
+            <div className="content-wrapper p-5 animated-card taskdone-table-card">
+              <div className="platform-titlebar">
+                <div>
+                  <h3><span className="section-title-icon"><QueueIcon /></span>Notification Sender Settings</h3>
+                  <p>Sender mailbox configure karne ka access sirf Platform Admin ke paas hai.</p>
+                </div>
+                <button type="button" className="platform-primary-btn" onClick={saveNotificationSettings}>Save Settings</button>
+              </div>
+
+              <p className="state-info">Guide: Sender mailbox yahan set karein. Receiver email har user profile me edit karein (Company Details / Admin panels).</p>
+
+              <div className="work-form">
+                <h4>Sender Identity</h4>
+                <label>
+                  Sender Name
+                  <input value={notificationSettings.sender.fromName || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, sender: { ...p.sender, fromName: e.target.value } }))} />
+                </label>
+                <label>
+                  Sender Email
+                  <input type="email" value={notificationSettings.sender.fromEmail || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, sender: { ...p.sender, fromEmail: e.target.value } }))} />
+                </label>
+                <label>
+                  Reply-To Email
+                  <input type="email" value={notificationSettings.sender.replyTo || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, sender: { ...p.sender, replyTo: e.target.value } }))} />
+                </label>
+
+                <h4>SMTP</h4>
+                <label>
+                  Host
+                  <input value={notificationSettings.smtp.host || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, smtp: { ...p.smtp, host: e.target.value } }))} />
+                </label>
+                <label>
+                  Port
+                  <input type="number" value={notificationSettings.smtp.port || 587} onChange={(e) => setNotificationSettings((p) => ({ ...p, smtp: { ...p.smtp, port: Number(e.target.value || 587) } }))} />
+                </label>
+                <label>
+                  SMTP User
+                  <input value={notificationSettings.smtp.user || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, smtp: { ...p.smtp, user: e.target.value } }))} />
+                </label>
+                <label>
+                  SMTP Password
+                  <input type="password" value={notificationSettings.smtp.password || ''} onChange={(e) => setNotificationSettings((p) => ({ ...p, smtp: { ...p.smtp, password: e.target.value } }))} />
+                </label>
+                <label>
+                  <input type="checkbox" checked={Boolean(notificationSettings.smtp.secure)} onChange={(e) => setNotificationSettings((p) => ({ ...p, smtp: { ...p.smtp, secure: e.target.checked } }))} />
+                  Use secure SSL/TLS
+                </label>
+
+                <h4>Notification Events</h4>
+                <label>
+                  <input type="checkbox" checked={Boolean(notificationSettings.notifications.assignment)} onChange={(e) => setNotificationSettings((p) => ({ ...p, notifications: { ...p.notifications, assignment: e.target.checked } }))} />
+                  Task Assignment Mail
+                </label>
+                <label>
+                  <input type="checkbox" checked={Boolean(notificationSettings.notifications.submission)} onChange={(e) => setNotificationSettings((p) => ({ ...p, notifications: { ...p.notifications, submission: e.target.checked } }))} />
+                  Submission Mail
+                </label>
+                <label>
+                  <input type="checkbox" checked={Boolean(notificationSettings.notifications.approval)} onChange={(e) => setNotificationSettings((p) => ({ ...p, notifications: { ...p.notifications, approval: e.target.checked } }))} />
+                  Approval Mail
+                </label>
+                <label>
+                  <input type="checkbox" checked={Boolean(notificationSettings.notifications.rework)} onChange={(e) => setNotificationSettings((p) => ({ ...p, notifications: { ...p.notifications, rework: e.target.checked } }))} />
+                  Rework Mail
+                </label>
+              </div>
+
+              <div className="platform-titlebar compact">
+                <h3>Connectivity</h3>
+                <button type="button" className="platform-table-btn" onClick={sendTestEmail}>Send Test Mail</button>
               </div>
             </div>
           </div>

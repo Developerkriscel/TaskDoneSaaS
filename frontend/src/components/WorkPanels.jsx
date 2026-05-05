@@ -4,13 +4,7 @@ import StatusBadge from './StatusBadge.jsx';
 import ToastNotice from './ToastNotice.jsx';
 import AttachmentPreviewModal from './AttachmentPreviewModal.jsx';
 import FileDropZone from './FileDropZone.jsx';
-
-function formatDate(value) {
-  if (!value) return '-';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString();
-}
+import { formatDate, formatDateTime } from '../utils/dateFormat.js';
 
 function formatAttachmentFlag(value) {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -21,6 +15,18 @@ function formatAttachmentFlag(value) {
 }
 
 const TABS = ['Delegation', 'Checklist', 'Work Request'];
+
+function normalizeChecklistRow(row = {}) {
+  return {
+    ...row,
+    taskDescription: row.taskDescription || row.description || row.taskDetail || '',
+    description: row.description || row.taskDescription || row.taskDetail || '',
+    frequency: row.frequency || row.taskFrequency || row.checklistFrequency || '-',
+    taskFrequency: row.taskFrequency || row.frequency || row.checklistFrequency || '-',
+    status: row.status || row.approvalStatus || 'Pending',
+    approvalStatus: row.approvalStatus || row.status || 'Pending'
+  };
+}
 
 function PanelStatus({ message, error }) {
   if (!message && !error) return null;
@@ -42,7 +48,7 @@ export default function WorkPanels({ user, projects = [], allUsers = [], onRefre
     priority: 'Medium'
   });
   const [checklist, setChecklist] = useState({
-    employee: '',
+    employee: [],
     description: '',
     project: '',
     frequency: 'Daily',
@@ -93,7 +99,7 @@ export default function WorkPanels({ user, projects = [], allUsers = [], onRefre
       legacyApi.getUserWorkRequests(user.name)
     ]);
 
-    setTaskRows({ delegations, checklists, workRequests });
+    setTaskRows({ delegations, checklists: (checklists || []).map(normalizeChecklistRow), workRequests });
   }
 
   async function guardedRun(fn) {
@@ -128,6 +134,19 @@ export default function WorkPanels({ user, projects = [], allUsers = [], onRefre
   function toIsoDateTime(dateValue, timeValue) {
     if (!dateValue || !timeValue) return '';
     return `${dateValue}T${timeValue}:00`;
+  }
+
+  function toggleChecklistEmployee(employeeName) {
+    setChecklist((prev) => {
+      const existing = Array.isArray(prev.employee) ? [...prev.employee] : [];
+      const index = existing.indexOf(employeeName);
+      if (index >= 0) {
+        existing.splice(index, 1);
+      } else {
+        existing.push(employeeName);
+      }
+      return { ...prev, employee: existing };
+    });
   }
 
   async function filesToDataUris(files, key) {
@@ -198,8 +217,8 @@ export default function WorkPanels({ user, projects = [], allUsers = [], onRefre
   async function createChecklist(e) {
     e.preventDefault();
 
-    if (!checklist.employee || !checklist.project) {
-      setError('Please select an employee and project.');
+    if (!Array.isArray(checklist.employee) || checklist.employee.length === 0 || !checklist.project) {
+      setError('Please select at least one employee and a project.');
       return;
     }
     if (!checklist.description || !checklist.startDate || !checklist.startTime) {
@@ -207,18 +226,17 @@ export default function WorkPanels({ user, projects = [], allUsers = [], onRefre
       return;
     }
 
+    const tasks = checklist.employee.map((employee) => ({
+      employee,
+      description: checklist.description,
+      project: checklist.project,
+      frequency: checklist.frequency,
+      startDate: toIsoDateTime(checklist.startDate, checklist.startTime),
+      attReq: checklist.attReq
+    }));
+
     await guardedRun(async () =>
-      legacyApi.saveChecklistTask(
-        {
-          employee: checklist.employee,
-          description: checklist.description,
-          project: checklist.project,
-          frequency: checklist.frequency,
-          startDate: toIsoDateTime(checklist.startDate, checklist.startTime),
-          attReq: checklist.attReq
-        },
-        user.name
-      )
+      legacyApi.saveChecklistTask(tasks, user.name)
     );
   }
 
@@ -419,7 +437,7 @@ export default function WorkPanels({ user, projects = [], allUsers = [], onRefre
                     <td className="col-id">{row.taskId}</td>
                     <td className="col-user">{row.delegatedBy || '-'}</td>
                     <td className="col-wrap">{row.taskDescription}</td>
-                    <td className="col-date">{formatDate(row.targetDate)}</td>
+                    <td className="col-date">{formatDateTime(row.targetDate)}</td>
                     <td className="col-status">
                       <StatusBadge status={row.status} />
                     </td>
@@ -455,21 +473,21 @@ export default function WorkPanels({ user, projects = [], allUsers = [], onRefre
         <div className="panel-body">
           <form className="work-form" onSubmit={createChecklist}>
             <h4>Create Checklist Master</h4>
-            <label>
-              Employee
-              <select
-                value={checklist.employee}
-                onChange={(e) => setChecklist((prev) => ({ ...prev, employee: e.target.value }))}
-                required
-              >
-                <option value="">Select employee</option>
+            <div>
+              <label>Employee(s)</label>
+              <div className="multi-checkbox-grid">
                 {assignableUsers.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
+                  <label key={name} className="checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={Array.isArray(checklist.employee) && checklist.employee.includes(name)}
+                      onChange={() => toggleChecklistEmployee(name)}
+                    />
+                    <span>{name}</span>
+                  </label>
                 ))}
-              </select>
-            </label>
+              </div>
+            </div>
             <label>
               Project
               <select
@@ -541,6 +559,7 @@ export default function WorkPanels({ user, projects = [], allUsers = [], onRefre
                   <th className="col-id">ID</th>
                   <th className="col-user">From</th>
                   <th className="col-wrap">Description</th>
+                  <th className="col-user">Frequency</th>
                   <th className="col-date">Plan Date</th>
                   <th className="col-proof">Attachment</th>
                   <th className="col-status">Status</th>
@@ -552,8 +571,9 @@ export default function WorkPanels({ user, projects = [], allUsers = [], onRefre
                   <tr key={row.taskId}>
                     <td className="col-id">{row.taskId}</td>
                     <td className="col-user">{row.delegatedBy || 'System'}</td>
-                    <td className="col-wrap">{row.taskDescription}</td>
-                    <td className="col-date">{formatDate(row.planDate)}</td>
+                    <td className="col-wrap">{row.taskDescription || row.description || '-'}</td>
+                    <td className="col-user">{row.frequency || row.taskFrequency || '-'}</td>
+                    <td className="col-date">{formatDateTime(row.planDate)}</td>
                     <td className="col-proof">{formatAttachmentFlag(row.attReq)}</td>
                     <td className="col-status">
                       <StatusBadge status={row.status} />
@@ -673,7 +693,7 @@ export default function WorkPanels({ user, projects = [], allUsers = [], onRefre
                     <td className="col-user">{row.requestFor || '-'}</td>
                     <td className="col-wrap">{row.description}</td>
                     <td className="col-user">{row.project || '-'}</td>
-                    <td className="col-date">{formatDate(row.deadline)}</td>
+                    <td className="col-date">{formatDateTime(row.deadline)}</td>
                     <td className="col-proof">
                       {Array.isArray(row.attachment) && row.attachment.length ? (
                         <button type="button" className="btn-compact" onClick={() => openPreview(row.attachment, 'Work Request Attachments')}>
@@ -711,7 +731,7 @@ export default function WorkPanels({ user, projects = [], allUsers = [], onRefre
             <p>
               Task: {actionModal.row?.taskId || actionModal.row?.requestId || '-'}
               {actionModal.mode === 'checklist-done' && actionModal.row?.planDate
-                ? ` for date ${new Date(actionModal.row.planDate).toLocaleDateString()}`
+                ? ` for date ${formatDate(actionModal.row.planDate)}`
                 : ''}
             </p>
             <label>

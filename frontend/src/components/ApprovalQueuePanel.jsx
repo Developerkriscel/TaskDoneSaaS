@@ -3,6 +3,7 @@ import { legacyApi } from '../services/api.js';
 import StatusBadge from './StatusBadge.jsx';
 import AttachmentPreviewModal from './AttachmentPreviewModal.jsx';
 import ToastNotice from './ToastNotice.jsx';
+import { formatDateTime } from '../utils/dateFormat.js';
 
 const REVIEW_ROLES = new Set(['Admin', 'Super Admin', 'App Admin']);
 
@@ -35,7 +36,22 @@ function normalizeRows(approvals) {
     proof: row.doerAttachments || []
   }));
 
-  return [...delegations, ...workRequests];
+  const checklists = (approvals?.checklists || []).map((row) => ({
+    id: row.taskId,
+    type: 'Checklist',
+    rpcType: 'Checklist',
+    fromUser: row.delegatedBy || 'System',
+    toUser: row.taskCompletedBy || row.userName,
+    description: row.taskDescription || row.description,
+    project: row.project,
+    status: row.status || row.approvalStatus || 'Send for Approval',
+    remarks: row.doerRemarks || row.remarks || '',
+    submittedOn: row.approvalDate || row.completionDate || row.actionDate || '',
+    proof: row.doerAttachments || row.attachment || [],
+    planDate: row.planDate || null
+  }));
+
+  return [...delegations, ...workRequests, ...checklists];
 }
 
 function ReviewModal({ open, mode, row, remarks, setRemarks, onClose, onConfirm, busy }) {
@@ -109,7 +125,7 @@ export default function ApprovalQueuePanel({ approvals, userRole, onRefresh }) {
 
     try {
       const nextStatus = modal.mode === 'approve' ? 'Completed' : 'Rework';
-      const res = await legacyApi.updateStatusWrapper(modal.row.rpcType, modal.row.id, nextStatus, remarks, null);
+      const res = await legacyApi.updateStatusWrapper(modal.row.rpcType, modal.row.id, nextStatus, remarks, modal.row.planDate || null);
       if (typeof res === 'string' && res !== 'success') {
         throw new Error(res);
       }
@@ -167,7 +183,7 @@ export default function ApprovalQueuePanel({ approvals, userRole, onRefresh }) {
                   <td className="col-user">{row.fromUser || '-'}</td>
                   <td className="col-user">{row.toUser || '-'}</td>
                   <td className="col-wrap">{row.description || '-'}</td>
-                  <td className="col-date">{row.submittedOn ? new Date(row.submittedOn).toLocaleString() : '-'}</td>
+                  <td className="col-date">{formatDateTime(row.submittedOn)}</td>
                   <td className="col-user">{row.project || '-'}</td>
                   <td className="col-wrap">{row.remarks || '-'}</td>
                   <td className="col-proof">

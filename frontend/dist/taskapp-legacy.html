@@ -595,28 +595,13 @@
     .filter-shell {
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
+      align-items: stretch;
       gap: 0.75rem;
       margin-bottom: 1.5rem;
     }
 
     .filter-toggle-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.55rem;
-      min-width: 0;
-      height: 2.75rem;
-      padding: 0 1rem;
-      border-radius: 999px;
-      border: 1px solid rgba(108, 99, 255, 0.22);
-      background: rgba(255, 255, 255, 0.92);
-      color: #312e81;
-      font-weight: 800;
-      box-shadow: 0 8px 22px rgba(49, 46, 129, 0.08);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease, color 0.22s ease;
+      display: none;
     }
 
     .filter-toggle-btn:hover {
@@ -637,20 +622,18 @@
 
     .filter-panel {
       width: 100%;
-      max-height: 0;
-      opacity: 0;
-      overflow: hidden;
-      pointer-events: none;
-      transform: translateY(-8px) scale(0.985);
-      transform-origin: top right;
-      transition: max-height 0.34s ease, opacity 0.24s ease, transform 0.3s ease;
+      max-height: none;
+      opacity: 1;
+      overflow: visible;
+      pointer-events: auto;
+      transform: none;
     }
 
     .filter-shell.open .filter-panel {
-      max-height: 18rem;
+      max-height: none;
       opacity: 1;
       pointer-events: auto;
-      transform: translateY(0) scale(1);
+      transform: none;
     }
 
     .filter-shell .filter-container {
@@ -671,11 +654,11 @@
       }
 
       .filter-toggle-btn {
-        align-self: flex-end;
+        display: none;
       }
 
       .filter-shell.open .filter-panel {
-        max-height: 34rem;
+        max-height: none;
       }
     }
 
@@ -1852,6 +1835,166 @@
       color: #86efac;
     }
 
+    /* Mobile hardening for FMS and floating AI surfaces */
+    #fms-view,
+    #fms-view * {
+      min-width: 0;
+    }
+
+    #fms-view .content-wrapper {
+      max-width: 100%;
+    }
+
+    .fms-mobile-toolbar,
+    .fms-mobile-toolbar-actions {
+      min-width: 0;
+    }
+
+    .fms-mobile-toolbar-actions button {
+      white-space: nowrap;
+    }
+
+    #fms-tabs {
+      min-width: 0;
+    }
+
+    #fms-tabs .tab-buttons {
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+
+    #fms-tabs .tab-buttons button {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    .fms-submit-popup {
+      max-width: min(96vw, 52rem) !important;
+    }
+
+    .fms-submit-popup .swal2-html-container {
+      max-height: min(72vh, 680px);
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    @media (max-width: 768px) {
+      #fms-view {
+        padding-bottom: 5.5rem;
+      }
+
+      .fms-mobile-toolbar {
+        align-items: stretch !important;
+        flex-direction: column !important;
+        gap: 0.85rem;
+      }
+
+      .fms-mobile-toolbar-actions {
+        align-items: stretch !important;
+        flex-direction: column !important;
+        width: 100%;
+      }
+
+      .fms-mobile-toolbar-actions button,
+      #fms-view .filter-chip,
+      #fms-view .platform-primary-btn,
+      #fms-view .platform-table-btn {
+        width: 100%;
+        justify-content: center;
+        min-height: 42px;
+      }
+
+      #fms-tabs .tab-buttons {
+        display: flex !important;
+        gap: 0.5rem;
+        padding-bottom: 0.35rem;
+      }
+
+      #fms-tabs .tab-buttons button {
+        min-height: 40px;
+        padding-inline: 0.9rem !important;
+      }
+
+      .fms-minimal-table-shell {
+        border-radius: 0.95rem;
+        overflow: hidden;
+      }
+
+      .fms-minimal-table-shell .legacy-table-scroll,
+      .fms-minimal-table-shell .dataTables_scrollBody {
+        max-height: none;
+      }
+
+      .fms-minimal-table-shell table.dataTable tbody tr {
+        padding: 0.75rem !important;
+      }
+
+      .fms-minimal-table-shell table.dataTable tbody td {
+        align-items: flex-start;
+        gap: 0.8rem;
+        text-align: right;
+      }
+
+      .fms-compact-cell {
+        max-width: 100%;
+        text-align: right;
+      }
+
+      .fms-action-stack {
+        grid-template-columns: 1fr;
+        min-width: 100%;
+        width: 100%;
+      }
+
+      .fms-action-stack button {
+        min-height: 38px;
+      }
+
+      #fms-form-modal {
+        padding: 0.5rem !important;
+      }
+
+      #fms-form-modal > div {
+        width: 100% !important;
+        height: calc(100dvh - 1rem) !important;
+        max-height: calc(100dvh - 1rem) !important;
+        border-radius: 0.85rem !important;
+      }
+
+      .swal2-popup {
+        width: min(96vw, 42rem) !important;
+      }
+
+      .swal2-html-container .flex {
+        flex-wrap: wrap;
+      }
+
+      #fms-config-saved-sheet,
+      #fms-config-save-sheet,
+      #fms-config-delete-sheet,
+      #fms-config-load-sheet,
+      #fms-config-ai-autofill,
+      #fms-config-add-manual {
+        width: 100%;
+      }
+
+      #fms-config-source {
+        max-width: none !important;
+        width: 100%;
+      }
+
+      #fms-step-editor-body input,
+      #fms-step-editor-body select,
+      #fms-flow-name,
+      #fms-flow-intent,
+      #fms-config-sheet-url,
+      #fms-config-sheet-name {
+        font-size: 16px !important;
+      }
+    }
+
     /* Modal Styling */
     .mis-modal-popup {
       border-radius: 16px !important;
@@ -1869,19 +2012,23 @@
     /* --- MIS Card Modern UI End --- */
   </style>
   <script>
-    window.__TASKDONE_API_BASE_URL__ = window.__TASKDONE_API_BASE_URL__ || 'https://taskdone-ehkm.onrender.com/api';
+    window.__TASKDONE_API_BASE_URL__ = window.__TASKDONE_API_BASE_URL__ || (
+      ['localhost', '127.0.0.1'].includes(window.location.hostname)
+        ? 'http://localhost:8080/api'
+        : 'https://taskdone-ehkm.onrender.com/api'
+    );
     window.__TASKDONE_TOKEN_KEY__ = 'td_token';
     window.__TASKDONE_READ_TOKEN__ = function () {
       try {
-        return localStorage.getItem(window.__TASKDONE_TOKEN_KEY__) || '';
+        return sessionStorage.getItem(window.__TASKDONE_TOKEN_KEY__) || '';
       } catch {
         return '';
       }
     };
     window.__TASKDONE_WRITE_TOKEN__ = function (token) {
       try {
-        if (token) localStorage.setItem(window.__TASKDONE_TOKEN_KEY__, token);
-        else localStorage.removeItem(window.__TASKDONE_TOKEN_KEY__);
+        if (token) sessionStorage.setItem(window.__TASKDONE_TOKEN_KEY__, token);
+        else sessionStorage.removeItem(window.__TASKDONE_TOKEN_KEY__);
       } catch {
         // ignore storage failures
       }
@@ -2413,12 +2560,12 @@ function loadFmsView() {
 
     // --- 2. Render Controls + Tabs ---
     const aiToolbar = canGenerate
-      ? `<div class="content-wrapper p-4 mb-4 flex items-center justify-between">
+      ? `<div class="content-wrapper p-4 mb-4 flex items-center justify-between fms-mobile-toolbar">
             <div>
               <h3 class="text-lg font-bold text-primary">FMS Flow Monitor</h3>
               <p class="text-xs text-gray-500">Create AI flow draft, then review and assign as per hierarchy.</p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 fms-mobile-toolbar-actions">
               <button id="fms-sheet-import-btn" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2">
                 <i class="fas fa-table"></i> Import Sheet
               </button>
@@ -3987,14 +4134,94 @@ function loadFmsData(containerId, scope, statusFilter) {
 
 function formatFmsDateTime(value) {
     if (!value) return '-';
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return String(value);
-    const datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const timePart = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const datePart = formatAppDate(value, String(value));
+    const timePart = formatAppTime(value, '');
     return `<span style="display:inline-flex;flex-direction:column;gap:4px;line-height:1.3;">
       <span>${datePart}</span>
       <span style="color:#6b7280;font-weight:600;">${timePart}</span>
     </span>`;
+}
+
+function parseAppDate(value) {
+    if (!value) return null;
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+    const text = String(value).trim();
+    if (!text) return null;
+
+    const ymd = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
+    if (ymd) {
+        const [, year, month, day] = ymd;
+        if (text.includes('T')) {
+            const parsed = new Date(text);
+            return Number.isNaN(parsed.getTime()) ? null : parsed;
+        }
+        return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+
+    const dmy = text.match(/^(\d{2})-(\d{2})-(\d{4})(?:$|[T\s])/);
+    if (dmy) {
+        const [, day, month, year] = dmy;
+        return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function twoDigit(value) {
+    return String(value).padStart(2, '0');
+}
+
+function formatAppDate(value, fallback = '-') {
+    const d = parseAppDate(value);
+    if (!d) return fallback;
+    return `${twoDigit(d.getDate())}-${twoDigit(d.getMonth() + 1)}-${d.getFullYear()}`;
+}
+
+function formatAppTime(value, fallback = '-') {
+    const d = parseAppDate(value);
+    if (!d) return fallback;
+    let hours = d.getHours();
+    const suffix = hours >= 12 ? 'pm' : 'am';
+    hours %= 12;
+    if (hours === 0) hours = 12;
+    return `${twoDigit(hours)}:${twoDigit(d.getMinutes())} ${suffix}`;
+}
+
+function formatAppDateTime(value, fallback = '-') {
+    const d = parseAppDate(value);
+    if (!d) return fallback;
+    return `${formatAppDate(d)} ${formatAppTime(d)}`;
+}
+
+function normalizeChecklistRow(row = {}) {
+    return {
+        ...row,
+        taskDescription: row.taskDescription || row.description || row.taskDetail || '',
+        description: row.description || row.taskDescription || row.taskDetail || '',
+        frequency: row.frequency || row.taskFrequency || row.checklistFrequency || '-',
+        taskFrequency: row.taskFrequency || row.frequency || row.checklistFrequency || '-',
+        status: row.status || row.approvalStatus || 'Pending',
+        approvalStatus: row.approvalStatus || row.status || 'Pending'
+    };
+}
+
+function normalizeChecklistRows(rows = []) {
+    return (rows || []).map(normalizeChecklistRow);
+}
+
+function normalizeKraRow(row = {}) {
+    return {
+        ...row,
+        description: row.description || row.taskDescription || row.kraDescription || '',
+        taskDescription: row.taskDescription || row.description || row.kraDescription || '',
+        frequency: row.frequency || row.taskFrequency || '-',
+        taskFrequency: row.taskFrequency || row.frequency || '-'
+    };
+}
+
+function normalizeKraRows(rows = []) {
+    return (rows || []).map(normalizeKraRow);
 }
 
 function isFlowManagerRole() {
@@ -4444,11 +4671,7 @@ async function openFlowTimeline(flowId) {
             ? events.slice().reverse().map((evt, i) => {
                 const when = formatFmsDateTime(evt?.at || '');
                 const whenPlain = (() => {
-                    const d = new Date(evt?.at || '');
-                    if (Number.isNaN(d.getTime())) return '-';
-                    const datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-                    const timePart = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-                    return `${datePart}, ${timePart}`;
+                    return formatAppDateTime(evt?.at || '');
                 })();
                 const actor = evt?.actorName || 'System';
                 const title = mapEventTypeToActivityStatus(evt?.eventType);
@@ -4665,11 +4888,7 @@ function flowWrapLines(text, maxChars = 34, maxLines = 3) {
 
 function fmtSmallDate(value) {
     if (!value) return '-';
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '-';
-    const date = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-    const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    return `${date} ${time}`;
+    return formatAppDateTime(value);
 }
 
 function buildFlowChartSvg(flow = {}, options = {}) {
@@ -6416,20 +6635,20 @@ function loadReportData(reportType, filters) {
                 fileName = 'Project_Summary_Report';
                 break;
             case 'workRequests':
-                columns = [{ title: "Request ID", data: "requestId" }, { title: "Requested By", data: "requestedBy" }, { title: "Request For", data: "requestFor" }, { title: "Project", data: "project" }, { title: "Description", data: "description", className: "wrap-text" }, { title: "Deadline", data: "deadline" }, { title: "Attachment", data: "attachment", render: formatAttachments }, { title: "Status", data: "status", render: getStatusBadge }, { title: "Final Remarks", data: "finalRemarks", className: "wrap-text" }, { title: "Completed Date", data: "completedDate" }];
+                columns = [{ title: "Request ID", data: "requestId" }, { title: "Requested By", data: "requestedBy" }, { title: "Request For", data: "requestFor" }, { title: "Project", data: "project" }, { title: "Description", data: "description", className: "wrap-text" }, { title: "Deadline", data: "deadline", render: d => formatAppDateTime(d || '') }, { title: "Attachment", data: "attachment", render: formatAttachments }, { title: "Status", data: "status", render: getStatusBadge }, { title: "Final Remarks", data: "finalRemarks", className: "wrap-text" }, { title: "Completed Date", data: "completedDate", render: d => formatAppDateTime(d || '') }];
                 tableData = data.workRequests;
                 containerId = 'work-request-report-content';
                 fileName = 'Work_Request_Report';
                 break;
             case 'delegations':
-                columns = [{ title: "Task ID", data: "taskId" }, { title: "Delegated By", data: "delegatedBy" }, { title: "Delegated To", data: "delegatedTo" }, { title: "Project", data: "project" }, { title: "Description", data: "taskDescription", className: "wrap-text" }, { title: "Target Date", data: "targetDate" }, { title: "Status", data: "taskStatus", render: getStatusBadge, type: "status-priority" }, { title: "Completed Date", data: "completedDate" }, { title: "Attachments", data: "attachments", render: formatAttachments }];
+                columns = [{ title: "Task ID", data: "taskId" }, { title: "Delegated By", data: "delegatedBy" }, { title: "Delegated To", data: "delegatedTo" }, { title: "Project", data: "project" }, { title: "Description", data: "taskDescription", className: "wrap-text" }, { title: "Target Date", data: "targetDate", render: d => formatAppDateTime(d || '') }, { title: "Status", data: "taskStatus", render: getStatusBadge, type: "status-priority" }, { title: "Completed Date", data: "completedDate", render: d => formatAppDateTime(d || '') }, { title: "Attachments", data: "attachments", render: formatAttachments }];
                 tableData = data.delegations;
                 containerId = 'delegation-report-content';
                 fileName = 'Delegation_Report';
                 break;
             case 'checklists':
-                columns = [{ title: "Task ID", data: "taskId" }, { title: "User Name", data: "userName" }, { title: "Project", data: "project" }, { title: "Plan Date", data: "planDate" }, { title: "Description", data: "description", className: "wrap-text" }, { title: "Frequency", data: "frequency" }, { title: "Actual Date", data: "actualDate" }, { title: "Remarks", data: "remarks", className: "wrap-text" }, { title: "Attachment", data: "attachment", render: formatAttachments }];
-                tableData = data.checklists;
+                columns = [{ title: "Task ID", data: "taskId" }, { title: "User Name", data: "userName" }, { title: "Project", data: "project" }, { title: "Plan Date", data: "planDate", render: d => formatAppDateTime(d || '') }, { title: "Description", data: "description", className: "wrap-text" }, { title: "Frequency", data: "frequency" }, { title: "Actual Date", data: "actualDate", render: d => formatAppDateTime(d || '') }, { title: "Remarks", data: "remarks", className: "wrap-text" }, { title: "Attachment", data: "attachment", render: formatAttachments }];
+                tableData = normalizeChecklistRows(data.checklists);
                 containerId = 'checklist-report-content';
                 fileName = 'Checklist_Report';
                 break;
@@ -6607,7 +6826,7 @@ function initializeDateDroppers(selector) {
     maxYear: 2030,
     lock: false,
     onChange: function(res, date) {
-         $(this).val(res);
+         $(this).val(formatAppDate(date || res, res));
          $(this).trigger('change');
     }
 });
@@ -6750,12 +6969,6 @@ function saveToCache(key, data) {
     });
 
     // 6. Filters Handling
-    $(document).on('click', '.filter-toggle-btn', function() {
-        const shell = $(this).closest('.filter-shell');
-        const isOpen = shell.toggleClass('open').hasClass('open');
-        $(this).attr('aria-expanded', isOpen ? 'true' : 'false');
-        shell.find('.filter-panel').attr('aria-hidden', isOpen ? 'false' : 'true');
-    });
     $(document).on('click', '.filter-btn', handleFilterChange);
     $(document).on('click', '.filter-clear-btn', handleClearFilter);
     $(document).on('change', '.filter-select, .datepicker, #report-status-filter', handleFilterChange);
@@ -6884,6 +7097,7 @@ function saveToCache(key, data) {
             sessionStorage.removeItem('td_role');
             localStorage.removeItem('td_auth_user');
             localStorage.removeItem('td_token');
+            sessionStorage.removeItem('td_token');
             // ------------------------------------
 
             $('#app-view').hide();
@@ -7094,12 +7308,8 @@ function createFilterHTML(prefix, options = {}) {
     }
 
     return `
-    <div class="filter-shell" data-prefix="${prefix}">
-    <button type="button" class="filter-toggle-btn" aria-expanded="false">
-        <i class="fas fa-filter"></i>
-        <span>Filter</span>
-    </button>
-    <div class="filter-panel" aria-hidden="true">
+    <div class="filter-shell open" data-prefix="${prefix}">
+    <div class="filter-panel" aria-hidden="false">
     <div class="content-wrapper p-3 filter-container" data-prefix="${prefix}">
         <div class="filter-wrapper">
             
@@ -7526,6 +7736,22 @@ function renderDashboardUI(data) {
 // --- GLOBAL VARIABLE (DATA STORE) ---
 let globalTeamTasks = []; 
 
+function getSafeFromLabel(value, fallback = 'System') {
+    const raw = String(value ?? '').trim();
+    if (!raw) return fallback;
+    const lower = raw.toLowerCase();
+    if (lower === 'undefined' || lower === 'null' || lower === 'nan') return fallback;
+    return raw;
+}
+
+function getSafeText(value, fallback = '-') {
+    const raw = String(value ?? '').trim();
+    if (!raw) return fallback;
+    const lower = raw.toLowerCase();
+    if (lower === 'undefined' || lower === 'null' || lower === 'nan') return fallback;
+    return raw;
+}
+
 // 1. ENTRY POINT: Render Function
 function renderTeamPriorityTasks(tasks) {
     globalTeamTasks = tasks || []; 
@@ -7562,7 +7788,7 @@ function filterTeamTasks(type, btnElement) {
     // --- LOGIC 2: GROUP BY USER ---
     const tasksByUser = {};
     filtered.forEach(task => {
-        const userKey = task.assignedTo || 'Unknown';
+        const userKey = getSafeText(task.assignedTo, 'Unknown');
         if (!tasksByUser[userKey]) {
             tasksByUser[userKey] = [];
         }
@@ -7588,20 +7814,21 @@ function filterTeamTasks(type, btnElement) {
 
             const dateColor = task.isOverdue ? 'text-red-600 font-bold' : 'text-gray-500';
             const icon = task.isOverdue ? 'fa-fire' : 'fa-clock';
+            const safeDateDisplay = getSafeText(task.dateDisplay, 'No date');
 
             return `
             <div class="border-b border-gray-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
                 <div class="flex justify-between items-start mb-1">
                     <span class="${badgeClass} text-[9px] font-bold px-1.5 py-0.5 rounded border border-black/5 uppercase tracking-wide">${task.type}</span>
                     <span class="${dateColor} text-[10px] flex items-center gap-1">
-                        <i class="fas ${icon}"></i> ${task.dateDisplay}
+                        <i class="fas ${icon}"></i> ${safeDateDisplay}
                     </span>
                 </div>
                 <p class="text-sm text-gray-700 leading-snug line-clamp-2 hover:line-clamp-none transition-all cursor-default" title="${task.description}">
                     ${task.description || 'No Description'}
                 </p>
                 <div class="text-[10px] text-gray-400 mt-1 italic text-right">
-                    From: ${task.delegatedBy || 'System'}
+                    From: ${getSafeFromLabel(task.delegatedBy, 'System')}
                 </div>
             </div>
             `;
@@ -7668,7 +7895,7 @@ function renderMetricCards(metrics, isTeam) {
             <h3 class="text-lg font-bold text-text-dark mb-4">${displayTitle}</h3>
             <div class="grid grid-cols-2 gap-4 text-center">
                 <div class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="showFilteredData('${item.title}', 'Total', ${item.data.total || 0})">
-                    <p class="text-3xl font-bold text-${item.color}-500" data-target-value="${item.data.total || 0}">0</p>
+                    <p class="text-3xl font-bold text-blue-500" data-target-value="${item.data.total || 0}">0</p>
                     <p class="text-sm font-semibold text-text-light">Total</p>
                 </div>
                 <div class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="showFilteredData('${item.title}', 'Done', ${item.data.done || 0})">
@@ -7831,10 +8058,10 @@ function renderMetricCards(metrics, isTeam) {
         detailContainer.html(detailHtml).slideDown();
 
         let columns = [];
-        if (cardType === 'Delegation') columns = [{ title: "ID", data: "taskId" }, { title: "To", data: "delegatedTo" }, { title: "Description", data: "taskDescription", className: "wrap-text" }, { title: "Target Date", data: "targetDate" }, { title: "Status", data: "taskStatus", render: getStatusBadge }];
-        else if (cardType === 'Work Request') columns = [{ title: "ID", data: "requestId" }, { title: "For", data: "requestFor" }, { title: "Description", data: "description", className: "wrap-text" }, { title: "Deadline", data: "deadline" }, { title: "Status", data: "status", render: getStatusBadge }];
-        else if (cardType === 'Checklist') columns = [{ title: "ID", data: "taskId" }, { title: "User", data: "userName" }, { title: "Description", data: "description", className: "wrap-text" }, { title: "Plan Date", data: "planDate" }, { title: "Actual Date", data: "actualDate" }];
-        else if (cardType === 'FMS') columns = [{ title: "User", data: "who" }, { title: "FMS Name", data: "fmsName" }, { title: "Task Name", data: "taskName" }, { title: "Plan Date", data: "planDate" }, { title: "Actual Date", data: "actualDate" }, { title: "Status", data: "onTimeStatus", render: (d) => d === 'Late' ? '<span class="status-badge status-overdue">Late</span>' : (d ? '<span class="status-badge status-completed">On Time</span>' : '<span class="status-badge status-pending">Pending</span>') }];
+        if (cardType === 'Delegation') columns = [{ title: "ID", data: "taskId" }, { title: "To", data: "delegatedTo" }, { title: "Description", data: "taskDescription", className: "wrap-text" }, { title: "Target Date", data: "targetDate", render: d => formatAppDateTime(d || '') }, { title: "Status", data: "taskStatus", render: getStatusBadge }];
+        else if (cardType === 'Work Request') columns = [{ title: "ID", data: "requestId" }, { title: "For", data: "requestFor" }, { title: "Description", data: "description", className: "wrap-text" }, { title: "Deadline", data: "deadline", render: d => formatAppDateTime(d || '') }, { title: "Status", data: "status", render: getStatusBadge }];
+        else if (cardType === 'Checklist') columns = [{ title: "ID", data: "taskId" }, { title: "User", data: "userName" }, { title: "Description", data: "description", className: "wrap-text" }, { title: "Plan Date", data: "planDate", render: d => formatAppDateTime(d || '') }, { title: "Actual Date", data: "actualDate", render: d => formatAppDateTime(d || '') }];
+        else if (cardType === 'FMS') columns = [{ title: "User", data: "who" }, { title: "FMS Name", data: "fmsName" }, { title: "Task Name", data: "taskName" }, { title: "Plan Date", data: "planDate", render: d => formatAppDateTime(d || '') }, { title: "Actual Date", data: "actualDate", render: d => formatAppDateTime(d || '') }, { title: "Status", data: "onTimeStatus", render: (d) => d === 'Late' ? '<span class="status-badge status-overdue">Late</span>' : (d ? '<span class="status-badge status-completed">On Time</span>' : '<span class="status-badge status-pending">Pending</span>') }];
         
         initializeDataTable(`#${containerId}-table`, { 
             data, 
@@ -7881,6 +8108,7 @@ function closeDetailView(view) {
             tasks.forEach(task => {
                 const statusClass = task.isOverdue ? 'text-red-600 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded' : 'text-gray-500';
                 const overdueIcon = task.isOverdue ? '<i class="fas fa-exclamation-circle text-red-500 mr-1"></i>' : '';
+                const safeTargetDate = formatAppDateTime(task.targetDate || task.dateDisplay || '', 'No date');
                 
                 // Done button logic
                 let actionBtn = '';
@@ -7898,13 +8126,13 @@ function closeDetailView(view) {
                                     ${task.description.length > 35 ? task.description.substring(0,35)+'...' : task.description}
                                 </span>
                                 <span class="text-[10px] uppercase font-bold tracking-wider text-gray-400">
-                                    ${task.type} • From: ${task.delegatedBy}
+                                    ${task.type} • From: ${getSafeFromLabel(task.delegatedBy, 'System')}
                                 </span>
                             </div>
                         </td>
                         <td class="py-3 px-2 whitespace-nowrap text-right">
                             <span class="${statusClass} text-xs flex items-center justify-end">
-                                ${overdueIcon} ${task.targetDate}
+                                ${overdueIcon} ${safeTargetDate}
                             </span>
                         </td>
                         <td class="py-3 pr-3 w-10 text-right rounded-r-lg">
@@ -8036,6 +8264,7 @@ function loadEmployeeDelegationView() {
     showLoading(true);
     google.script.run.withSuccessHandler(tasks => {
         showLoading(false);
+        tasks = normalizeChecklistRows(tasks || []);
         const columns = [
             { title: "ID", data: "taskId", width: "5%" }, 
             { title: "From", data: "delegatedBy", width: "10%" }, 
@@ -8047,7 +8276,7 @@ function loadEmployeeDelegationView() {
               }
             },
             { title: "Description", data: "taskDescription", className: "wrap-text", width: "30%" }, 
-            { title: "Target", data: "targetDate", width: "10%", className: "text-xs" }, 
+            { title: "Target", data: "targetDate", width: "10%", className: "text-xs", render: d => formatAppDateTime(d || '') }, 
             // 2. ATTACHMENTS Added
             { title: "Files", data: "attachments", render: formatAttachments, className: "text-center", width: "5%" }, 
             { title: "Rework Note", data: "reworkRemark", className: "wrap-text text-red-600 text-xs italic", width: "15%" }, 
@@ -8059,20 +8288,22 @@ function loadEmployeeDelegationView() {
     }).getDelegatedTasksForEmployee(currentUser);
 
     // Keep the completed section logic as is...
-    $('button[data-target="#completed-delegation-emp"]').one('click', () => {
-        showLoading(true);
-        google.script.run.withSuccessHandler(data => {
-            showLoading(false);
-            const columns = [
-                { title: "ID", data: "taskId" }, 
-                { title: "Description", data: "description", className: "wrap-text" }, 
-                { title: "Submitted On", data: "submittedOn" }, 
-                { title: "Approved On", data: "approvedOn" }, 
-                { title: "Final Remarks", data: "finalRemarks", className: "wrap-text" },
-                { title: "Status", data: "status", render: getStatusBadge }
-            ];
-            initializeDataTable('#delegations-table-emp-completed', { data: data.delegations, columns, containerId: 'completed-delegation-emp', fileName: 'My_Completed_Delegations' });
-        }).getEmployeeSubmissions(currentUser);
+    $('button[data-target="#completed-delegation-emp"]').on('click', function() {
+        if ($('#completed-delegation-emp').is(':empty')) {
+            showLoading(true);
+            google.script.run.withSuccessHandler(data => {
+                showLoading(false);
+                const columns = [
+                    { title: "ID", data: "taskId" }, 
+                    { title: "Description", data: "description", className: "wrap-text" }, 
+                    { title: "Submitted On", data: "submittedOn" }, 
+                    { title: "Approved On", data: "approvedOn" }, 
+                    { title: "Final Remarks", data: "finalRemarks", className: "wrap-text" },
+                    { title: "Status", data: "status", render: getStatusBadge }
+                ];
+                initializeDataTable('#delegations-table-emp-completed', { data: data.delegations, columns, containerId: 'completed-delegation-emp', fileName: 'My_Completed_Delegations' });
+            }).getEmployeeSubmissions(currentUser);
+        }
     });
 }
     function loadEmployeeChecklistView() {
@@ -8088,6 +8319,7 @@ function loadEmployeeDelegationView() {
     showLoading(true);
     google.script.run.withSuccessHandler(tasks => {
         showLoading(false);
+        tasks = normalizeChecklistRows(tasks || []);
         
         // --- COLUMNS WITH CHECKBOX ---
         const columns = [
@@ -8101,7 +8333,7 @@ function loadEmployeeDelegationView() {
                 render: (d, t, r) => `<input type="checkbox" class="checklist-item-checkbox h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer" data-task-id="${r.taskId}" data-plan-date="${r.planDate}">` 
             },
             { title: "ID", data: "taskId", width: "5%" },
-            { title: "Plan Date", data: "planDate", width: "10%" },
+            { title: "Plan Date", data: "planDate", width: "10%", render: d => formatAppDateTime(d || '') },
             { title: "Description", data: "description", className: "wrap-text", width: "35%" },
             { title: "Frequency", data: "frequency", width: "10%" },
             { title: "Rework Note", data: "remarks", className: "wrap-text text-red-600 font-bold text-xs", width: "15%" },
@@ -8140,22 +8372,36 @@ function loadEmployeeDelegationView() {
     }).getChecklistTasksForEmployee(currentUser);
 
     // ... (Completed Tab aur KRA Tab ka code same rahega) ...
-    $('button[data-target="#completed-checklist-emp"]').one('click', () => {
-        showLoading(true);
-        google.script.run.withSuccessHandler(data => {
-            showLoading(false);
-            const columns = [{ title: "ID", data: "taskId" }, { title: "Plan Date", data: "planDate" }, { title: "Description", data: "description" }, { title: "Submitted On", data: "submittedOn" }, { title: "Remarks", data: "remarks" }, { title: "Status", data: "status", render: getStatusBadge }];
-            initializeDataTable('#checklists-table-emp-completed', { data: data.checklists, columns, containerId: 'completed-checklist-emp', fileName: 'My_Completed_Checklists' });
-        }).getEmployeeSubmissions(currentUser);
+    $('button[data-target="#completed-checklist-emp"]').on('click', function() {
+        if ($('#completed-checklist-emp').is(':empty')) {
+            showLoading(true);
+            google.script.run.withSuccessHandler(data => {
+                showLoading(false);
+                const columns = [{ title: "ID", data: "taskId" }, { title: "Plan Date", data: "planDate", render: d => formatAppDateTime(d || '') }, { title: "Description", data: "description" }, { title: "Submitted On", data: "submittedOn", render: d => formatAppDateTime(d || '') }, { title: "Remarks", data: "remarks" }, { title: "Status", data: "status", render: getStatusBadge }];
+                initializeDataTable('#checklists-table-emp-completed', { data: data.checklists, columns, containerId: 'completed-checklist-emp', fileName: 'My_Completed_Checklists' });
+            }).getEmployeeSubmissions(currentUser);
+        }
     });
 
-    $('button[data-target="#my-kra-content-emp"]').one('click', () => loadKraTable('my-kra-content-emp'));
+    $('button[data-target="#my-kra-content-emp"]').on('click', function() {
+        if ($('#my-kra-content-emp').is(':empty')) {
+            loadKraTable('my-kra-content-emp');
+        }
+    });
 }
         function loadEmployeeWorkRequestView() {
             const view = $('#work-request-view');
             view.html(getTabViewHTML('work-request-tabs-emp', [{ title: 'Create Request', contentId: 'create-request-content-emp' }, { title: 'My Requests', contentId: 'my-requests-content-emp' }, { title: 'Pending For Me', contentId: 'pending-for-me-content-emp' }]));
-            $('button[data-target="#my-requests-content-emp"]').one('click', () => loadMyWorkRequests('my-requests-content-emp'));
-            $('button[data-target="#pending-for-me-content-emp"]').one('click', () => loadWorkRequestsForMe('pending-for-me-content-emp'));
+            $('button[data-target="#my-requests-content-emp"]').on('click', function() {
+                if ($('#my-requests-content-emp').is(':empty')) {
+                    loadMyWorkRequests('my-requests-content-emp');
+                }
+            });
+            $('button[data-target="#pending-for-me-content-emp"]').on('click', function() {
+                if ($('#pending-for-me-content-emp').is(':empty')) {
+                    loadWorkRequestsForMe('pending-for-me-content-emp');
+                }
+            });
             loadWorkRequestForm('create-request-content-emp');
         }
 
@@ -8512,7 +8758,7 @@ function renderMisView(data) {
                 data.workRequests.filter(t => t.onTimeStatus?.toLowerCase() === 'late').forEach(t => combinedData.push({ id: t.requestId, description: t.description, user: t.requestFor, status: t.onTimeStatus, type: 'Work Request' }));
             } else if (kpiTitle.includes('Checklist Pending')) {
                 columns = [{ title: "Task ID", data: "id" }, { title: "Description", data: "description", className: "wrap-text" }, { title: "User", data: "user" }, { title: "Plan Date", data: "status" }];
-                data.checklists.filter(t => !t.actualDate).forEach(t => combinedData.push({ id: t.taskId, description: t.description, user: t.userName, status: t.planDate }));
+                normalizeChecklistRows(data.checklists).filter(t => !t.actualDate).forEach(t => combinedData.push({ id: t.taskId, description: t.description, user: t.userName, status: t.planDate }));
             }
             initializeDataTable(`#mis-summary-detail-table`, { data: combinedData, columns, containerId, fileName: `MIS_Summary_${kpiTitle}` });
         }).withFailureHandler(() => $(`#${containerId}`).html(getEmptyStateHTML('Error', 'Could not fetch details.'))).getAllReportData(currentUser, currentUserRole, filters);
@@ -8756,7 +9002,7 @@ function openMisKpiDrillDown(employeeName, kpiCategory, kpiName) {
             data: "completedDate", 
             width: "90px", 
             className: "text-xs align-middle text-blue-600 font-semibold text-center",
-            render: (d) => d || '<span class="text-gray-300">-</span>'
+            render: (d) => d ? formatAppDateTime(d, '-') : '<span class="text-gray-300">-</span>'
         });
 
         // Col 6: Delay Duration
@@ -8843,7 +9089,7 @@ function renderTeamDelegationTable(data) {
         { title: "To", data: "delegatedTo", width: "10%", className: "font-bold text-indigo-600" },
         { title: "Project", data: "project", width: "10%" },
         { title: "Description", data: "taskDescription", className: "wrap-text", width: "30%" },
-        { title: "Target", data: "targetDate", width: "10%" },
+        { title: "Target", data: "targetDate", width: "10%", render: d => formatAppDateTime(d || '') },
         { title: "Status", data: "taskStatus", render: getStatusBadge, type: "status-priority", width: "10%" },
         { title: "Attachments", data: "attachments", render: formatAttachments, className: "text-center", width: "5%" }
     ];
@@ -8960,7 +9206,7 @@ function renderTeamDelegationTable(data) {
 
         // Event Listeners (सिर्फ एक बार Attach होंगे)
         $('button[data-target="#my-delegation-tasks-content"]').on('click', function() {
-             if ($('#admin-delegation-table-container').is(':empty')) {
+             if ($('#my-delegation-tasks-content').is(':empty')) {
                  loadEmployeeDelegationViewForAdmin('my-delegation-tasks-content');
              }
         });
@@ -8986,19 +9232,39 @@ function loadAdminChecklistView() {
     ]));
 
     // 1. My Pending Tasks
-    $('button[data-target="#my-checklist-tasks-content"]').one('click', () => loadEmployeeChecklistViewForAdmin('my-checklist-tasks-content'));
+    $('button[data-target="#my-checklist-tasks-content"]').on('click', function() {
+        if ($('#my-checklist-tasks-content').is(':empty')) {
+            loadEmployeeChecklistViewForAdmin('my-checklist-tasks-content');
+        }
+    });
 
     // 1B. Team Pending (Admin/Super Admin only)
-    $('button[data-target="#team-checklist-pending-application-content"]').one('click', () => loadTeamChecklistPendingApplications('team-checklist-pending-application-content'));
+    $('button[data-target="#team-checklist-pending-application-content"]').on('click', function() {
+        if ($('#team-checklist-pending-application-content').is(':empty')) {
+            loadTeamChecklistPendingApplications('team-checklist-pending-application-content');
+        }
+    });
     
     // 2. Team Transactional Checklists (Filtered View)
-    $('button[data-target="#view-checklists-content"]').one('click', () => setupFilteredTeamView({ containerId: 'view-checklists-content', prefix: 'team_chk', reportType: 'checklists' }));
+    $('button[data-target="#view-checklists-content"]').on('click', function() {
+        if ($('#view-checklists-content').is(':empty')) {
+            setupFilteredTeamView({ containerId: 'view-checklists-content', prefix: 'team_chk', reportType: 'checklists' });
+        }
+    });
     
     // 3. My KRA Master (Scope: My)
-    $('button[data-target="#my-kra-content"]').one('click', () => loadKraTable('my-kra-content', 'My'));
+    $('button[data-target="#my-kra-content"]').on('click', function() {
+        if ($('#my-kra-content').is(':empty')) {
+            loadKraTable('my-kra-content', 'My');
+        }
+    });
 
     // 4. Team KRA Master (Scope: Team - Needs Filters)
-    $('button[data-target="#team-kra-content"]').one('click', () => setupKraView('team-kra-content'));
+    $('button[data-target="#team-kra-content"]').on('click', function() {
+        if ($('#team-kra-content').is(':empty')) {
+            setupKraView('team-kra-content');
+        }
+    });
 
     loadChecklistTaskForm();
 }
@@ -9009,27 +9275,54 @@ function loadTeamChecklistPendingApplications(containerId) {
     }
 
     showLoading(true);
-    google.script.run.withSuccessHandler(data => {
+    const approvalsPromise = new Promise((resolve, reject) => {
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getTasksForApproval(currentUser, currentUserRole);
+    });
+    const reportPromise = new Promise((resolve, reject) => {
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getAllReportData(currentUser, currentUserRole, { period: 'all', project: 'All Projects', employee: 'All Team' });
+    });
+
+    Promise.all([approvalsPromise, reportPromise]).then(([data, reportData]) => {
         showLoading(false);
-        const checklists = (data.checklists || []).map(item => ({
+        const approvalRows = normalizeChecklistRows(data.checklists || []).map(item => ({
             id: item.taskId,
             typeLabel: 'Checklist',
-            fromUser: item.delegatedBy || 'System',
+            fromUser: getSafeFromLabel(item.delegatedBy, 'System'),
             toUser: item.taskCompletedBy || item.userName,
             description: item.taskDescription || item.description,
             submittedOn: item.approvalDate || item.completionDate || item.actionDate,
             planDate: item.planDate,
             doerRemarks: item.doerRemarks,
             doerAttachments: item.doerAttachments,
-            status: item.isRework ? 'Rework' : 'Pending'
+            status: item.isRework ? 'Rework' : 'Send for Approval',
+            canApprove: true
         }));
+        const approvalIds = new Set(approvalRows.map(row => String(row.id)));
+        const teamPendingRows = normalizeChecklistRows(reportData.checklists || [])
+            .filter(item => !item.actualDate || ['pending', 'rework'].includes(String(item.status || item.approvalStatus || '').toLowerCase()))
+            .filter(item => !approvalIds.has(String(item.taskId)))
+            .map(item => ({
+                id: item.taskId,
+                typeLabel: 'Checklist',
+                fromUser: getSafeFromLabel(item.delegatedBy, 'System'),
+                toUser: item.userName || item.taskCompletedBy,
+                description: item.taskDescription || item.description,
+                submittedOn: item.updatedAt || item.createdAt,
+                planDate: item.planDate,
+                doerRemarks: item.remarks || 'Awaiting doer submission',
+                doerAttachments: item.attachment || item.doerAttachments || [],
+                status: item.status || item.approvalStatus || 'Pending',
+                canApprove: false
+            }));
+
+        const checklists = [...approvalRows, ...teamPendingRows];
 
         const columns = [
             { title: "Task ID", data: "id", width: "8%" },
             { title: "From", data: "fromUser", width: "12%", className: "text-xs text-gray-500 font-semibold" },
             { title: "To", data: "toUser", width: "12%", className: "font-bold text-indigo-600 text-sm" },
             { title: "Description", data: "description", className: "wrap-text text-sm font-medium", width: "26%" },
-            { title: "Plan Date", data: "planDate", width: "10%" },
+            { title: "Plan Date", data: "planDate", width: "10%", render: d => formatAppDateTime(d || '') },
             { title: "Doer Remarks", data: "doerRemarks", className: "wrap-text text-xs text-blue-600 italic", width: "16%", render: d => d || '<span class="text-gray-300">-</span>' },
             { title: "Proof", data: "doerAttachments", width: "8%", className: "text-center", render: formatAttachments },
             { title: "Status", data: "status", render: getStatusBadge, width: "8%" },
@@ -9041,12 +9334,12 @@ function loadTeamChecklistPendingApplications(containerId) {
                 className: "text-center",
                 render: (d, t, r) => `
                 <div class="flex gap-1 justify-center">
-                    <button class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs shadow transition-transform transform hover:scale-105" title="Approve" onclick="handleApprovalAction('Checklist', '${r.id}', 'Completed', '${r.planDate || null}')">
+                    ${r.canApprove ? `<button class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs shadow transition-transform transform hover:scale-105" title="Approve" onclick="handleApprovalAction('Checklist', '${r.id}', 'Completed', '${r.planDate || null}')">
                         <i class="fas fa-check"></i>
                     </button>
                     <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs shadow transition-transform transform hover:scale-105" title="Rework" onclick="handleApprovalAction('Checklist', '${r.id}', 'Rework', '${r.planDate || null}')">
                         <i class="fas fa-redo"></i>
-                    </button>
+                    </button>` : `<span class="text-xs text-gray-400 font-semibold">Waiting</span>`}
                 </div>`
             }
         ];
@@ -9057,16 +9350,24 @@ function loadTeamChecklistPendingApplications(containerId) {
             containerId,
             fileName: 'Team_Checklist_Pending_Applications'
         });
-    }).withFailureHandler(err => {
+    }).catch(err => {
         showLoading(false);
         Swal.fire('Error', 'Failed to load team pending checklist applications: ' + err.message, 'error');
-    }).getTasksForApproval(currentUser, currentUserRole);
+    });
 }
         function loadAdminWorkRequestView() {
             const view = $('#work-request-view');
             view.html(getTabViewHTML('work-request-tabs', [{ title: 'Create Request', contentId: 'create-request-content' }, { title: 'My Pending Requests', contentId: 'my-wr-tasks-content' }, { title: 'Team Requests', contentId: 'team-wr-content' }]));
-            $('button[data-target="#my-wr-tasks-content"]').one('click', () => loadEmployeeWorkRequestViewForAdmin('my-wr-tasks-content'));
-            $('button[data-target="#team-wr-content"]').one('click', () => setupFilteredTeamView({ containerId: 'team-wr-content', prefix: 'team_wr', reportType: 'workRequests' }));
+            $('button[data-target="#my-wr-tasks-content"]').on('click', function() {
+                if ($('#my-wr-tasks-content').is(':empty')) {
+                    loadEmployeeWorkRequestViewForAdmin('my-wr-tasks-content');
+                }
+            });
+            $('button[data-target="#team-wr-content"]').on('click', function() {
+                if ($('#team-wr-content').is(':empty')) {
+                    setupFilteredTeamView({ containerId: 'team-wr-content', prefix: 'team_wr', reportType: 'workRequests' });
+                }
+            });
             loadWorkRequestForm('create-request-content');
         }
 
@@ -9139,10 +9440,10 @@ function addDelegationRow() {
 }
 
         function loadChecklistTaskForm() {
-            $('#assign-checklist-content').html(`<div class="content-wrapper p-6"><form id="checklist-task-form"><div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"><div><label class="form-label">Employee Name</label><select id="checklistEmployee" required class="form-input"></select></div><div><label class="form-label">Project</label><select id="checklistProject" required class="form-input"></select></div></div><div id="checklist-rows-container"></div><div class="flex justify-between items-center mt-6"><button type="button" id="add-checklist-row" class="bg-indigo-100 text-indigo-700 font-semibold text-sm px-4 py-2 rounded-lg"><i class="fas fa-plus mr-2"></i>Add Task</button><button type="submit" class="bg-primary hover:bg-primary-dark py-3 px-8 rounded-lg text-white"><i class="fas fa-plus-circle mr-2"></i>Assign All</button></div></form></div>`);
+            $('#assign-checklist-content').html(`<div class="content-wrapper p-6"><form id="checklist-task-form"><div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"><div><label class="form-label">Employees</label><select id="checklistEmployee" multiple required class="form-input"></select></div><div><label class="form-label">Project</label><select id="checklistProject" required class="form-input"></select></div></div><div id="checklist-rows-container"></div><div class="flex justify-between items-center mt-6"><button type="button" id="add-checklist-row" class="bg-indigo-100 text-indigo-700 font-semibold text-sm px-4 py-2 rounded-lg"><i class="fas fa-plus mr-2"></i>Add Task</button><button type="submit" class="bg-primary hover:bg-primary-dark py-3 px-8 rounded-lg text-white"><i class="fas fa-plus-circle mr-2"></i>Assign All</button></div></form></div>`);
             addChecklistRow();
             $(document).off('click', '#add-checklist-row').on('click', '#add-checklist-row', addChecklistRow);
-            google.script.run.withSuccessHandler(m => $('#checklistEmployee').html('<option value="">Select...</option>' + m.map(o => `<option value="${o}">${o}</option>`).join('')).select2({ placeholder: "Select an employee...", width: '100%' })).getTeamMembersWithManager(currentUser, currentUserRole);
+            google.script.run.withSuccessHandler(m => $('#checklistEmployee').html('<option value="">Select...</option>' + m.map(o => `<option value="${o}">${o}</option>`).join('')).select2({ placeholder: "Select employees...", width: '100%' })).getTeamMembersWithManager(currentUser, currentUserRole);
             $('#checklistProject').html('<option value="">Select Project...</option>' + allProjects.map(p => `<option value="${p}">${p}</option>`).join('')).select2({ width: '100%' });
         }
 
@@ -9164,7 +9465,6 @@ function addDelegationRow() {
                     <option>Quarterly</option>
                     <option>Half Yearly</option>
                     <option>Yearly</option>
-                    <option>One Time</option>
                 </select>
             </div>
             <div><label class="form-label font-semibold">Start Date</label><input type="text" required data-max-year="2030" class="checklist-start-date datepicker form-input"></div>
@@ -9587,10 +9887,10 @@ function handleChecklistTaskSubmit(e) {
     const submitButton = form.find('button[type="submit"]');
     const originalButtonHTML = submitButton.html();
 
-    const employee = $('#checklistEmployee').val();
+    const employees = [].concat($('#checklistEmployee').val() || []);
     const projectName = $('#checklistProject').val();
     
-    if (!employee || !projectName) return Swal.fire('Error', 'Please select an employee and project.', 'error');
+    if (!employees.length || !projectName) return Swal.fire('Error', 'Please select at least one employee and a project.', 'error');
 
     submitButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Processing...');
 
@@ -9608,36 +9908,41 @@ function handleChecklistTaskSubmit(e) {
         // --- USE NEW HELPER FUNCTION ---
         const formattedDateTime = getSafeIsoDateTime(dateVal, timeVal);
 
-        const commonData = { 
-            employeeName: employee, 
-            projectName, 
-            taskDescription: taskDesc, 
-            taskFrequency: freq, 
+        const commonData = {
+            projectName,
+            taskDescription: taskDesc,
+            taskFrequency: freq,
             startDate: formattedDateTime,
-            attachmentRequired: row.find('.checklist-att').is(':checked') 
+            attachmentRequired: row.find('.checklist-att').is(':checked')
+        };
+
+        const addTaskForEmployee = (taskData) => {
+            employees.forEach((employeeName) => {
+                tasks.push({ ...commonData, employeeName, ...taskData });
+            });
         };
 
         // Frequency Logic (Existing logic kept same)
         if (freq === 'Weekly') {
             const days = row.find('.checklist-day-date:checked');
             if(days.length === 0) { validationError = 'Select day for weekly.'; return false;}
-            days.each(function() { tasks.push({ ...commonData, dayOrDate: $(this).val() }); });
+            days.each(function() { addTaskForEmployee({ dayOrDate: $(this).val() }); });
         } else if (freq === 'Fortnightly') {
              const d1 = row.find('.checklist-fortnight-1').val();
              const d2 = row.find('.checklist-fortnight-2').val();
              const d3 = row.find('.checklist-fortnight-3').val();
              if(!d1 || !d2 || !d3) { validationError = 'Incomplete dates.'; return false; }
-             tasks.push({ ...commonData, dayOrDate: d1 });
-             tasks.push({ ...commonData, dayOrDate: d2 });
-             tasks.push({ ...commonData, dayOrDate: d3 });
+             addTaskForEmployee({ dayOrDate: d1 });
+             addTaskForEmployee({ dayOrDate: d2 });
+             addTaskForEmployee({ dayOrDate: d3 });
         } else if (freq === 'Half Yearly') {
              const d1 = row.find('.checklist-day-date-1').val();
              const d2 = row.find('.checklist-day-date-2').val();
              if(!d1 || !d2) { validationError = 'Select two dates.'; return false;}
-             tasks.push({ ...commonData, dayOrDate: d1 });
-             tasks.push({ ...commonData, dayOrDate: d2 });
+             addTaskForEmployee({ dayOrDate: d1 });
+             addTaskForEmployee({ dayOrDate: d2 });
         } else {
-            tasks.push({ ...commonData, dayOrDate: row.find('.checklist-day-date').val() || '' });
+            addTaskForEmployee({ dayOrDate: row.find('.checklist-day-date').val() || '' });
         }
     });
 
@@ -10363,15 +10668,15 @@ function setupFilteredTeamView(options) {
         showLoading(false);
         
         // SAVE TO GLOBAL CACHE
-        rawTeamChecklistData = data.checklists || [];
+        rawTeamChecklistData = normalizeChecklistRows(data.checklists || []);
 
         const columns = [
             { title: "ID", data: "taskId" }, 
             { title: "User", data: "userName" }, 
             { title: "Project", data: "project" }, 
             { title: "Description", data: "description", className: "wrap-text" }, 
-            { title: "Plan Date", data: "planDate" }, 
-            { title: "Actual Date", data: "actualDate", render: d => d || '-' }, 
+            { title: "Plan Date", data: "planDate", render: d => formatAppDateTime(d || '') }, 
+            { title: "Actual Date", data: "actualDate", render: d => formatAppDateTime(d || '') }, 
             { title: "Remarks", data: "remarks", className: "wrap-text text-xs italic", render: d => d || '-' },
             { title: "Files", data: "attachment", render: formatAttachments }, 
             { title: "Status", data: "onTimeStatus", render: (d, t, r) => !r.actualDate ? getStatusBadge('Pending') : (d ? (d.toLowerCase()==='late' ? '<span class="status-badge status-rework">Late</span>':'<span class="status-badge status-completed">On Time</span>'):getStatusBadge('Completed'))}
@@ -10406,7 +10711,7 @@ function setupFilteredTeamView(options) {
             { title: "To", data: "requestFor" }, 
             { title: "Project", data: "project" }, 
             { title: "Description", data: "description", className: "wrap-text", width: "25%" }, 
-            { title: "Deadline", data: "deadline" }, 
+            { title: "Deadline", data: "deadline", render: d => formatAppDateTime(d || '') }, 
             { title: "Files", data: "attachment", render: formatAttachments },
             { title: "Status", data: "status", render: getStatusBadge, type: "status-priority" }
         ];
@@ -10472,9 +10777,135 @@ function loadReports() {
 
         // --- SUPER ADMIN FUNCTIONS ---
         function loadUserManagement() {
-            $('#user-management-view').html(getTabViewHTML('admin-settings-tabs', [{ title: 'Manage Users', contentId: 'manage-users-content' }, { title: 'Manage Projects', contentId: 'manage-projects-content' }]));
+            $('#user-management-view').html(getTabViewHTML('admin-settings-tabs', [{ title: 'Manage Users', contentId: 'manage-users-content' }, { title: 'Manage Projects', contentId: 'manage-projects-content' }, { title: 'Notification Settings', contentId: 'manage-notification-settings-content' }]));
             loadUsersTable();
             $('button[data-target="#manage-projects-content"]').one('click', loadProjectManagement);
+            $('button[data-target="#manage-notification-settings-content"]').one('click', loadNotificationSettingsLegacy);
+        }
+
+        async function loadNotificationSettingsLegacy() {
+            const containerId = 'manage-notification-settings-content';
+            const container = $(`#${containerId}`);
+            container.html(`
+                <div class="content-wrapper p-6">
+                    <h3 class="text-xl font-bold mb-2">Notification Configuration</h3>
+                    <p class="text-sm text-gray-500 mb-5">Settings > Sub Settings > Configuration </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="form-label">Sender Name</label><input id="ns-from-name" class="form-input" /></div>
+                        <div><label class="form-label">Sender Email</label><input id="ns-from-email" type="email" class="form-input" /></div>
+                        <div><label class="form-label">Reply-To</label><input id="ns-reply-to" type="email" class="form-input" /></div>
+                        <div><label class="form-label">SMTP Host</label><input id="ns-smtp-host" class="form-input" /></div>
+                        <div><label class="form-label">SMTP Port</label><input id="ns-smtp-port" type="number" class="form-input" value="587" /></div>
+                        <div><label class="form-label">SMTP User</label><input id="ns-smtp-user" class="form-input" /></div>
+                        <div><label class="form-label">SMTP Password</label><input id="ns-smtp-password" type="password" class="form-input" /></div>
+                        <div class="flex items-center gap-2 pt-7"><input id="ns-smtp-secure" type="checkbox" /><label for="ns-smtp-secure" class="text-sm font-semibold">Use SSL/TLS</label></div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+                        <label class="text-sm"><input id="ns-assignment" type="checkbox" checked /> Assignment</label>
+                        <label class="text-sm"><input id="ns-submission" type="checkbox" checked /> Submission</label>
+                        <label class="text-sm"><input id="ns-approval" type="checkbox" checked /> Approval</label>
+                        <label class="text-sm"><input id="ns-rework" type="checkbox" checked /> Rework</label>
+                    </div>
+                    <div class="flex gap-3 mt-6">
+                        <button id="ns-save-btn" class="bg-primary text-white px-4 py-2 rounded-md font-semibold">Save Configuration</button>
+                        <button id="ns-test-btn" class="bg-emerald-600 text-white px-4 py-2 rounded-md font-semibold">Send Test Mail</button>
+                    </div>
+                </div>
+            `);
+
+            try {
+                showLoading(true);
+                const base = window.__TASKDONE_API_BASE_URL__;
+                const res = await fetch(`${base}/v1/admin/notification-settings`, { credentials: 'include' });
+                const data = await res.json();
+                if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to load settings');
+                const s = data?.settings || {};
+                $('#ns-from-name').val(s?.sender?.fromName || '');
+                $('#ns-from-email').val(s?.sender?.fromEmail || '');
+                $('#ns-reply-to').val(s?.sender?.replyTo || '');
+                $('#ns-smtp-host').val(s?.smtp?.host || '');
+                $('#ns-smtp-port').val(s?.smtp?.port || 587);
+                $('#ns-smtp-user').val(s?.smtp?.user || '');
+                $('#ns-smtp-password').val(s?.smtp?.password || '');
+                $('#ns-smtp-secure').prop('checked', Boolean(s?.smtp?.secure));
+                $('#ns-assignment').prop('checked', s?.notifications?.assignment !== false);
+                $('#ns-submission').prop('checked', s?.notifications?.submission !== false);
+                $('#ns-approval').prop('checked', s?.notifications?.approval !== false);
+                $('#ns-rework').prop('checked', s?.notifications?.rework !== false);
+            } catch (err) {
+                Swal.fire('Error', err.message || 'Could not load notification settings.', 'error');
+            } finally {
+                showLoading(false);
+            }
+
+            $('#ns-save-btn').off('click').on('click', async function () {
+                try {
+                    showLoading(true);
+                    const base = window.__TASKDONE_API_BASE_URL__;
+                    const payload = {
+                        sender: {
+                            fromName: String($('#ns-from-name').val() || '').trim(),
+                            fromEmail: String($('#ns-from-email').val() || '').trim(),
+                            replyTo: String($('#ns-reply-to').val() || '').trim()
+                        },
+                        smtp: {
+                            host: String($('#ns-smtp-host').val() || '').trim(),
+                            port: Number($('#ns-smtp-port').val() || 587),
+                            user: String($('#ns-smtp-user').val() || '').trim(),
+                            password: String($('#ns-smtp-password').val() || ''),
+                            secure: $('#ns-smtp-secure').is(':checked')
+                        },
+                        notifications: {
+                            assignment: $('#ns-assignment').is(':checked'),
+                            submission: $('#ns-submission').is(':checked'),
+                            approval: $('#ns-approval').is(':checked'),
+                            rework: $('#ns-rework').is(':checked')
+                        }
+                    };
+                    const res = await fetch(`${base}/v1/admin/notification-settings`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Save failed');
+                    Swal.fire('Saved', 'Notification settings updated.', 'success');
+                } catch (err) {
+                    Swal.fire('Error', err.message || 'Could not save settings.', 'error');
+                } finally {
+                    showLoading(false);
+                }
+            });
+
+            $('#ns-test-btn').off('click').on('click', async function () {
+                const result = await Swal.fire({
+                    title: 'Send Test Mail',
+                    input: 'email',
+                    inputLabel: 'Recipient Email',
+                    inputPlaceholder: 'name@company.com',
+                    showCancelButton: true,
+                    confirmButtonText: 'Send'
+                });
+                if (!result.isConfirmed || !result.value) return;
+                try {
+                    showLoading(true);
+                    const base = window.__TASKDONE_API_BASE_URL__;
+                    const res = await fetch(`${base}/v1/admin/notification-settings/test-email`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ to: result.value })
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Test mail failed');
+                    Swal.fire('Sent', `Test mail sent to ${result.value}`, 'success');
+                } catch (err) {
+                    Swal.fire('Error', err.message || 'Could not send test mail.', 'error');
+                } finally {
+                    showLoading(false);
+                }
+            });
         }
 
         function loadUsersTable() {
@@ -10678,15 +11109,15 @@ function loadReports() {
     $(document).off('click', '#add-wr-row').on('click', '#add-wr-row', addWorkRequestRow);
     
     initializeDateDroppers('#requestDeadline');
-    google.script.run.withSuccessHandler(users => $('#requestFor').html('<option value="">Select user...</option>' + users.filter(u => u !== currentUser).map(u => `<option value="${u}">${u}</option>`).join('')).select2({ placeholder: "Select a user...", width: '100%' })).getAllUsers();
+    google.script.run.withSuccessHandler(users => $('#requestFor').html('<option value="">Select user...</option>' + users.filter(u => u !== currentUser).map(u => `<option value="${u}">${u}</option>`).join('')).select2({ placeholder: "Select a user...", width: '100%' })).getTeamMembersWithManager(currentUser, currentUserRole);
     $('#requestProject').html('<option value="">Select Project...</option>' + allProjects.map(p => `<option value="${p}">${p}</option>`).join('')).select2({ width: '100%' });
 }
         function loadMyWorkRequests(containerId) {
             showLoading(true);
             google.script.run.withSuccessHandler(reqs => {
                 showLoading(false);
-                const columns = [{ title: "ID", data: "requestId" }, { title: "To", data: "requestFor" }, { title: "Project", data: "project" }, { title: "Description", data: "description", className: "wrap-text" }, { title: "Deadline", data: "deadline" }, { title: "Status", data: "status", render: getStatusBadge, type: "status-priority" }];
-                initializeDataTable('#my-requests-table', { data: reqs.filter(r => r.requestedBy === currentUser), columns, containerId, fileName: 'My_Work_Requests', defaultOrder: [[4, 'asc']] });
+                const columns = [{ title: "ID", data: "requestId" }, { title: "To", data: "requestFor" }, { title: "Project", data: "project" }, { title: "Description", data: "description", className: "wrap-text" }, { title: "Deadline", data: "deadline", render: d => formatAppDateTime(d || '') }, { title: "Status", data: "status", render: getStatusBadge, type: "status-priority" }];
+                initializeDataTable('#my-requests-table', { data: reqs.filter(r => r.requestedBy === currentUser && ['pending', 'rework', 'send for approval'].includes(String(r.status || '').toLowerCase())), columns, containerId, fileName: 'My_Work_Requests', defaultOrder: [[4, 'asc']] });
             }).withFailureHandler(err => { showLoading(false); Swal.fire('Error', 'Could not load requests.', 'error'); }).getUserWorkRequests(currentUser);
         }
 function addWorkRequestRow() {
@@ -10745,7 +11176,7 @@ function addWorkRequestRow() {
         newRow.find(`#wr-user-${rowId}`)
             .html('<option value="">Select user...</option>' + users.filter(u => u !== currentUser).map(u => `<option value="${u}">${u}</option>`).join(''))
             .select2({ placeholder: "Select User", width: '100%' });
-    }).getAllUsers();
+    }).getTeamMembersWithManager(currentUser, currentUserRole);
 
     // 3. Populate Projects Dropdown
     const projectOpts = '<option value="">Select Project...</option>' + allProjects.map(p => `<option value="${p}">${p}</option>`).join('');
@@ -10765,7 +11196,7 @@ function addWorkRequestRow() {
             { title: "From", data: "requestedBy" },
             { title: "Project", data: "project" },
             { title: "Description", data: "description", className: "wrap-text", width: "30%" },
-            { title: "Deadline", data: "deadline" },
+            { title: "Deadline", data: "deadline", render: d => formatAppDateTime(d || '') },
             // 1. FILES Added
             { title: "Files", data: "attachment", render: formatAttachments, className: "text-center" }, 
             // 2. STATUS & ACTION at the End
@@ -10781,7 +11212,7 @@ function addWorkRequestRow() {
             showLoading(true);
             google.script.run.withSuccessHandler(tasks => {
                 showLoading(false);
-                const columns = [{ title: "ID", data: "taskId" }, { title: "From", data: "delegatedBy" }, { title: "Description", data: "taskDescription", className: "wrap-text" }, { title: "Target Date", data: "targetDate" }, { title: "Status", data: "taskStatus", render: getStatusBadge }, { title: "Rework Remark", data: "reworkRemark", className: "wrap-text" }, { title: "Actions", data: null, orderable: false, render: (d,t,r) => `<button class="bg-primary text-white font-semibold px-4 py-2 rounded-md text-sm" onclick="handleEmployeeDelegationSubmit('${r.taskId}')">Done</button>` }];
+                const columns = [{ title: "ID", data: "taskId" }, { title: "From", data: "delegatedBy" }, { title: "Description", data: "taskDescription", className: "wrap-text" }, { title: "Target Date", data: "targetDate", render: d => formatAppDateTime(d || '') }, { title: "Status", data: "taskStatus", render: getStatusBadge }, { title: "Rework Remark", data: "reworkRemark", className: "wrap-text" }, { title: "Actions", data: null, orderable: false, render: (d,t,r) => `<button class="bg-primary text-white font-semibold px-4 py-2 rounded-md text-sm" onclick="handleEmployeeDelegationSubmit('${r.taskId}')">Done</button>` }];
                 initializeDataTable('#delegations-table-admin-self', { data: tasks, columns, containerId: 'admin-delegation-table-container', fileName: 'My_Delegations' });
             }).getDelegatedTasksForEmployee(currentUser);
         }
@@ -10855,9 +11286,9 @@ function handleBulkChecklistSubmit(tableSelector) {
                 render: (d, t, r) => `<input type="checkbox" class="checklist-item-checkbox h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer" data-task-id="${r.taskId}" data-plan-date="${r.planDate}">` 
             },
             { title: "ID", data: "taskId" }, 
-            { title: "Plan Date", data: "planDate" }, 
+            { title: "Plan Date", data: "planDate", render: d => formatAppDateTime(d || '') }, 
             { title: "Description", data: "description", className: "wrap-text" }, 
-            { title: "Frequency", data: "frequency" }, 
+            { title: "Frequency", data: "frequency", render: d => `<span class="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-200">${d || '-'}</span>` }, 
             { title: "Status", data: "status", render: getStatusBadge }, 
             { title: "Rework Remark", data: "remarks", className: "wrap-text" }, 
             { title: "Actions", data: null, orderable: false, render: (d,t,r) => `<button class="bg-green-600 text-white font-semibold px-4 py-2 rounded-md text-sm" onclick="handleEmployeeChecklistSubmit('${r.taskId}', '${r.planDate}')">Done</button>` }
@@ -10888,7 +11319,7 @@ function handleBulkChecklistSubmit(tableSelector) {
 
     }).getChecklistTasksForEmployee(currentUser);
 }
-        function loadEmployeeWorkRequestViewForAdmin(containerId) { loadWorkRequestsForMe(containerId); }
+        function loadEmployeeWorkRequestViewForAdmin(containerId) { loadMyWorkRequests(containerId); }
 
         // --- DOCUMENT READY (UPDATED) ---
         $(document).ready(() => {
@@ -11064,12 +11495,12 @@ function loadKraData(filters) {
             { title: "User", data: "delegatedTo", className: "font-bold text-indigo-600" }, // User Column Visible
             { title: "KRA Description", data: "description", className: "wrap-text font-medium" },
             { title: "Project", data: "project", className: "text-xs" },
-            { title: "Frequency", data: "frequency", render: (d) => `<span class="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-200">${d}</span>` },
-            { title: "Start Date", data: "startDate" }
+            { title: "Frequency", data: "frequency", render: (d, t, r) => `<span class="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-200">${d || r.taskFrequency || '-'}</span>` },
+            { title: "Start Date", data: "startDate", render: d => formatAppDateTime(d || '') }
         ];
 
         initializeDataTable(`#kra-master-table`, {
-            data: data,
+            data: normalizeKraRows(data),
             columns: columns,
             containerId: `kra-table-wrapper`,
             fileName: 'Team_KRA_Master_List',
@@ -11102,12 +11533,12 @@ function loadKraTable(containerId, scope = 'My') {
             // Assigned To column removed for "My KRA" to save space
             { title: "Description (KRA)", data: "description", className: "wrap-text" },
             { title: "Project", data: "project" },
-            { title: "Frequency", data: "frequency", render: (d) => `<span class="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-200">${d}</span>` },
-            { title: "Start Date", data: "startDate" }
+            { title: "Frequency", data: "frequency", render: (d, t, r) => `<span class="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-200">${d || r.taskFrequency || '-'}</span>` },
+            { title: "Start Date", data: "startDate", render: d => formatAppDateTime(d || '') }
         ];
 
         initializeDataTable(`#${containerId}-table`, {
-            data: data,
+            data: normalizeKraRows(data),
             columns: columns,
             containerId: `${containerId}-table-wrapper`,
             fileName: 'My_KRA_Master_List',
@@ -11271,7 +11702,7 @@ $(document).on('click', '.export-excel-btn', function() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
     
     // डाउनलोड ट्रिगर करें
-    XLSX.writeFile(workbook, `${filename}_${new Date().toLocaleDateString()}.xlsx`);
+    XLSX.writeFile(workbook, `${filename}_${formatAppDate(new Date())}.xlsx`);
 });
 
 // 3. PDF DOWNLOAD HANDLER
@@ -11325,7 +11756,7 @@ $(document).on('click', '.export-pdf-btn', function() {
     doc.setFontSize(14);
     doc.text(filename.replace(/_/g, ' '), 14, 15);
     doc.setFontSize(10);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
+    doc.text(`Generated on: ${formatAppDateTime(new Date())}`, 14, 22);
 
     // टेबल बनाएं
     doc.autoTable({
@@ -11361,7 +11792,7 @@ $(document).on('click', '.export-pdf-btn', function() {
     });
 
     // डाउनलोड करें
-    doc.save(`${filename}_${new Date().toLocaleDateString()}.pdf`);
+    doc.save(`${filename}_${formatAppDate(new Date())}.pdf`);
 });
     </script>
 </body>

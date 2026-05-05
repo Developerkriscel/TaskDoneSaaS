@@ -40,6 +40,10 @@ function readCookieToken(req) {
   return null;
 }
 
+function isCookieAuthEnabled() {
+  return String(process.env.COOKIE_AUTH_ENABLED || 'false').toLowerCase() === 'true';
+}
+
 const DEFAULT_PERMISSIONS = {
   'Super Admin': {
     canViewAllTasks: true,
@@ -70,7 +74,8 @@ const DEFAULT_PERMISSIONS = {
 export async function authRequired(req, res, next) {
   const auth = req.headers.authorization || '';
   const bearerToken = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  const token = bearerToken || readCookieToken(req);
+  const cookieToken = isCookieAuthEnabled() ? readCookieToken(req) : null;
+  const token = bearerToken || cookieToken;
 
   if (!token) {
     return res.status(401).json({ success: false, error: 'Unauthorized' });

@@ -792,9 +792,17 @@ async function findRowByIdCompat(taskType, id) {
   return Model.findOne({ taskId: id }).lean();
 }
 
+async function getEmailRecipientCompat(userName) {
+  const user = await User.findOne({ name: userName }).select('email companyId').lean();
+  return {
+    email: user?.email || null,
+    companyId: user?.companyId || null
+  };
+}
+
 async function getEmailForUserCompat(userName) {
-  const user = await User.findOne({ name: userName }).select('email').lean();
-  return user?.email || null;
+  const recipient = await getEmailRecipientCompat(userName);
+  return recipient.email || null;
 }
 
 async function createEmailTemplateCompat(kind, payload = {}) {
@@ -807,34 +815,61 @@ async function createEmailTemplateCompat(kind, payload = {}) {
   };
 }
 
+async function shouldSendNotificationCompat(kind = '', companyId = null) {
+  const key = companyId ? `platformNotificationSettings:${String(companyId)}` : 'platformNotificationSettings';
+  const row = await AppSetting.findOne({ key }).select('value').lean();
+  const flags = row?.value?.notifications || {};
+  const map = {
+    delegation: 'assignment',
+    workrequest: 'submission',
+    completion: 'approval',
+    rework: 'rework'
+  };
+  const flagKey = map[String(kind || '').toLowerCase()] || '';
+  if (!flagKey) return true;
+  return flags[flagKey] !== false;
+}
+
 async function sendDelegationEmailCompat(toUserName, payload = {}) {
-  const to = payload.to || (await getEmailForUserCompat(toUserName));
+  const recipient = await getEmailRecipientCompat(toUserName);
+  if (!(await shouldSendNotificationCompat('delegation', recipient.companyId))) {
+    return { success: true, skipped: true, reason: 'Assignment email disabled in platform settings.' };
+  }
+  const to = payload.to || recipient.email;
   if (!to) return { success: false, error: 'Recipient email not found.' };
   const tpl = await createEmailTemplateCompat('Delegation', {
     title: payload.title || 'New Delegation Task',
     body: payload.body || `A delegation task has been assigned to ${toUserName}.`
   });
-  return sendEmail({ to, subject: tpl.subject, html: tpl.html });
+  return sendEmail({ to, companyId: recipient.companyId, subject: tpl.subject, html: tpl.html });
 }
 
 async function sendWorkRequestEmailCompat(toUserName, payload = {}) {
-  const to = payload.to || (await getEmailForUserCompat(toUserName));
+  const recipient = await getEmailRecipientCompat(toUserName);
+  if (!(await shouldSendNotificationCompat('workrequest', recipient.companyId))) {
+    return { success: true, skipped: true, reason: 'Submission email disabled in platform settings.' };
+  }
+  const to = payload.to || recipient.email;
   if (!to) return { success: false, error: 'Recipient email not found.' };
   const tpl = await createEmailTemplateCompat('Work Request', {
     title: payload.title || 'Work Request Update',
     body: payload.body || `A work request update is available for ${toUserName}.`
   });
-  return sendEmail({ to, subject: tpl.subject, html: tpl.html });
+  return sendEmail({ to, companyId: recipient.companyId, subject: tpl.subject, html: tpl.html });
 }
 
 async function sendCompletionNotificationCompat(toUserName, payload = {}) {
-  const to = payload.to || (await getEmailForUserCompat(toUserName));
+  const recipient = await getEmailRecipientCompat(toUserName);
+  if (!(await shouldSendNotificationCompat('completion', recipient.companyId))) {
+    return { success: true, skipped: true, reason: 'Approval email disabled in platform settings.' };
+  }
+  const to = payload.to || recipient.email;
   if (!to) return { success: false, error: 'Recipient email not found.' };
   const tpl = await createEmailTemplateCompat('Completion', {
     title: payload.title || 'Task Completion Notification',
     body: payload.body || `${toUserName}, a task has been completed and is ready for review.`
   });
-  return sendEmail({ to, subject: tpl.subject, html: tpl.html });
+  return sendEmail({ to, companyId: recipient.companyId, subject: tpl.subject, html: tpl.html });
 }
 
 async function fixAppSpeedCompat() {

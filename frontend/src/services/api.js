@@ -1,10 +1,13 @@
 import axios from 'axios';
 
 const defaultProductionApiBase = 'https://taskdone-ehkm.onrender.com/api';
+const defaultLocalApiBase = 'http://localhost:8080/api';
 const runtimeApiBase = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}/api` : 'http://localhost:8080/api';
+const isLocalHost =
+  typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const configuredApiBase =
   import.meta.env.VITE_API_BASE_URL ||
-  (typeof window !== 'undefined' ? window.__TASKDONE_API_BASE_URL__ || defaultProductionApiBase : '');
+  (typeof window !== 'undefined' ? window.__TASKDONE_API_BASE_URL__ || (isLocalHost ? defaultLocalApiBase : defaultProductionApiBase) : '');
 const normalizedConfiguredApiBase =
   typeof window !== 'undefined' && configuredApiBase && configuredApiBase.includes('://localhost:')
     ? configuredApiBase.replace('://localhost:', `://${window.location.hostname}:`)
@@ -14,15 +17,15 @@ const TOKEN_KEY = 'td_token';
 
 function readStoredToken() {
   if (typeof window === 'undefined') return '';
-  return window.localStorage.getItem(TOKEN_KEY) || '';
+  return window.sessionStorage.getItem(TOKEN_KEY) || '';
 }
 
 export function setAuthToken(token) {
   if (typeof window === 'undefined') return;
   if (token) {
-    window.localStorage.setItem(TOKEN_KEY, token);
+    window.sessionStorage.setItem(TOKEN_KEY, token);
   } else {
-    window.localStorage.removeItem(TOKEN_KEY);
+    window.sessionStorage.removeItem(TOKEN_KEY);
   }
 }
 
@@ -182,6 +185,30 @@ export const platformApi = {
     const { data } = await api.get(`/v1/platform/users/${userId}/credentials`);
     return data;
   },
+  getCompanyNotificationSettings: async (companyId) => {
+    const { data } = await api.get(`/v1/platform/companies/${companyId}/notification-settings`);
+    return data;
+  },
+  updateCompanyNotificationSettings: async (companyId, payload) => {
+    const { data } = await api.patch(`/v1/platform/companies/${companyId}/notification-settings`, payload);
+    return data;
+  },
+  sendCompanyNotificationTestEmail: async (companyId, to) => {
+    const { data } = await api.post(`/v1/platform/companies/${companyId}/notification-settings/test-email`, { to });
+    return data;
+  },
+  getAdminNotificationSettings: async () => {
+    const { data } = await api.get('/v1/admin/notification-settings');
+    return data;
+  },
+  updateAdminNotificationSettings: async (payload) => {
+    const { data } = await api.patch('/v1/admin/notification-settings', payload);
+    return data;
+  },
+  sendAdminNotificationTestEmail: async (to) => {
+    const { data } = await api.post('/v1/admin/notification-settings/test-email', { to });
+    return data;
+  },
   updatePlatformUser: async (userId, payload) => {
     const { data } = await api.patch(`/v1/platform/users/${userId}`, payload);
     return data;
@@ -200,9 +227,12 @@ export const platformApi = {
   },
   aiChatStream: (messages) => {
     const baseURL = api.defaults.baseURL;
+    const token = readStoredToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`${baseURL}/v1/ai-chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       credentials: 'include',
       body: JSON.stringify({ messages })
     });

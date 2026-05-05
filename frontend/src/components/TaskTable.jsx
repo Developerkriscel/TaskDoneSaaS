@@ -1,9 +1,4 @@
-function formatDate(value) {
-  if (!value) return '-';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '-';
-  return d.toLocaleDateString();
-}
+import { formatDate } from '../utils/dateFormat.js';
 
 export default function TaskTable({ title, rows = [], columns = [], emptyText = 'No rows found.' }) {
   return (

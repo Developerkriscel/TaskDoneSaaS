@@ -16,6 +16,10 @@ function cookieOptions() {
   };
 }
 
+function isCookieAuthEnabled() {
+  return String(process.env.COOKIE_AUTH_ENABLED || 'false').toLowerCase() === 'true';
+}
+
 export const login = asyncHandler(async (req, res) => {
   const { userId, password } = req.body;
   const result = await runGasMethod('checkCredentials', [userId, password], { user: req.user || null });
@@ -24,7 +28,9 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(401).json(result);
   }
 
-  res.cookie('td_token', result.token, cookieOptions());
+  if (isCookieAuthEnabled()) {
+    res.cookie('td_token', result.token, cookieOptions());
+  }
   res.json(result);
 });
 
@@ -43,6 +49,8 @@ export const currentUser = asyncHandler(async (req, res) => {
 });
 
 export const logout = asyncHandler(async (req, res) => {
-  res.clearCookie('td_token', cookieOptions());
+  if (isCookieAuthEnabled()) {
+    res.clearCookie('td_token', cookieOptions());
+  }
   res.json({ success: true });
 });
