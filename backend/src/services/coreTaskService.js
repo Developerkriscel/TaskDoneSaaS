@@ -603,7 +603,8 @@ async function markChecklistTaskDone(taskId, planDate, remarks, filesData = []) 
     const { delay, status } = calculateDelay(row.planDate, row.actualDate);
     row.totalDelay = delay;
     row.onTimeStatus = status;
-    row.approvalStatus = 'Send for Approval';
+    // Checklist is auto-approved: no "Send for Approval" stage.
+    row.approvalStatus = 'Completed';
     await row.save();
 
     return 'success';
