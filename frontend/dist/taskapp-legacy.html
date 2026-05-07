@@ -2182,7 +2182,7 @@
                 <i class="fas fa-moon text-indigo-500 text-xl"></i>
                 <i class="fas fa-sun text-yellow-500 text-xl hidden"></i>
             </button>
-          <button id="refresh-button" class="header-icon-btn text-green-500 hover:bg-green-100 dark:hover:bg-green-500/20" title="Refresh Data"> <i id="refresh-icon" class="fas fa-sync-alt text-xl"></i> </button>
+          <button id="refresh-button" type="button" onclick="refreshCurrentView(); return false;" class="header-icon-btn text-green-500 hover:bg-green-100 dark:hover:bg-green-500/20" title="Refresh Data"> <i id="refresh-icon" class="fas fa-sync-alt text-xl"></i> </button>
 
           <div class="relative user-dropdown">
             <!-- Updated User Button with Greeting -->
@@ -2461,13 +2461,14 @@ function showLoading(isLoading) {
 function refreshCurrentView() {
     const refreshIcon = $('#refresh-icon');
     refreshIcon.addClass('refresh-spin');
+    const targetView = currentView || 'dashboard-view';
     
     // 1. Clear Cache
     localStorage.removeItem('SUPER_APP_CACHE');
     GLOBAL_STORE = { dashboard: null, mis: null, rawData: null };
     
     // 2. Fetch Fresh
-    fetchDataFromServer();
+    fetchDataFromServer(false, targetView);
     
     setTimeout(() => refreshIcon.removeClass('refresh-spin'), 1000);
 }
@@ -6951,7 +6952,10 @@ function saveToCache(key, data) {
 
     // 3. Header Buttons
     $('#header-logout-btn-visible').on('click', handleLogout);
-    $('#refresh-button').on('click', refreshCurrentView);
+    $('#refresh-button').off('click').on('click', function(e) {
+        e.preventDefault();
+        refreshCurrentView();
+    });
 
     // 4. Forms Submission Handlers
     $(document).off('submit', '#delegate-task-form').on('submit', '#delegate-task-form', handleDelegateTaskSubmit);
@@ -7169,7 +7173,7 @@ function initializeApp(userName, userRole) {
 
 // --- Index.html (Update fetchDataFromServer) ---
 
-function fetchDataFromServer(silent = false) {
+function fetchDataFromServer(silent = false, targetView = null) {
     if (!silent) showLoading(true);
     google.script.run.withSuccessHandler(data => {
         if (!silent) showLoading(false);
@@ -7184,7 +7188,7 @@ function fetchDataFromServer(silent = false) {
 
         if (data.success) {
             writeBootstrapCache(currentUser, currentUserRole, data);
-            applyAppData(data);
+            applyAppData(data, targetView);
             console.log("Fresh data fetched from server");
         } else {
             Swal.fire('Error', data.error || 'Unknown Server Error', 'error');
@@ -7198,7 +7202,7 @@ function fetchDataFromServer(silent = false) {
 
 
 // --- HELPER FUNCTION TO APPLY DATA ---
-function applyAppData(data) {
+function applyAppData(data, targetView = null) {
     allProjects = data.projects;
     allUsers = data.allUsers;
     
@@ -7218,7 +7222,8 @@ function applyAppData(data) {
 
     // --- FIX: Instead of direct render, call setView ---
     // यह सुनिश्चित करेगा कि पहले HTML Wrapper बने, फिर डेटा भरे।
-    setView('dashboard-view');
+    const resolvedView = targetView || currentView || 'dashboard-view';
+    setView(resolvedView);
 }
 // --- HELPER: COMPACT GREETING HEADER ---
 function getGreetingHTML() {
@@ -10372,13 +10377,19 @@ function initializeDataTable(selector, options) {
     showLoading(true);
     google.script.run.withSuccessHandler(data => {
         showLoading(false);
-        const container = $('#approve-task-view');
-        const newSubs = [], reworkSubs = [];
+       const container = $('#approve-task-view');
+       const newSubs = [], reworkSubs = [];
+       const isApprovalActionable = (status) => {
+           const normalized = String(status || '').trim().toLowerCase();
+           return ['send for approval', 'pending', 'rework'].includes(normalized);
+       };
         
         // Data Processing
         ['delegations', 'workRequests', 'checklists'].forEach(type => {
             (data[type] || []).forEach(item => {
                 item.typeLabel = type === 'delegations' ? 'Delegation' : (type === 'workRequests' ? 'Work Request' : 'Checklist');
+                const itemStatus = item.status || item.approvalStatus || '';
+                if (!isApprovalActionable(itemStatus)) return;
                 (item.isRework ? reworkSubs : newSubs).push(item);
             });
         });
@@ -10465,6 +10476,7 @@ function initializeDataTable(selector, options) {
             description: item.taskDescription || item.description, 
             submittedOn: item.approvalDate || item.completionDate || item.actionDate, 
             planDate: item.planDate,
+            status: item.status || item.approvalStatus || '',
             doerRemarks: item.doerRemarks,
             doerAttachments: item.doerAttachments
         }));

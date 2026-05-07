@@ -6,6 +6,12 @@ import ToastNotice from './ToastNotice.jsx';
 import { formatDateTime } from '../utils/dateFormat.js';
 
 const REVIEW_ROLES = new Set(['Admin', 'Super Admin', 'App Admin']);
+const APPROVAL_PENDING = new Set(['send for approval', 'pending', 'rework']);
+
+function isApprovalActionable(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  return APPROVAL_PENDING.has(normalized);
+}
 
 function normalizeRows(approvals) {
   const delegations = (approvals?.delegations || []).map((row) => ({
@@ -98,7 +104,15 @@ export default function ApprovalQueuePanel({ approvals, userRole, onRefresh }) {
   const [toast, setToast] = useState({ text: '', type: 'success' });
   const [preview, setPreview] = useState({ open: false, urls: [], title: 'File Preview' });
 
-  const rows = useMemo(() => normalizeRows(approvals), [approvals]);
+  const rows = useMemo(
+    () =>
+      normalizeRows(approvals).filter((row) => {
+        // Checklist is auto-approved in backend; hide completed checklist rows if any stale data appears.
+        if (row.type === 'Checklist' && !isApprovalActionable(row.status)) return false;
+        return true;
+      }),
+    [approvals]
+  );
   const canReview = REVIEW_ROLES.has(String(userRole || '').trim());
 
   function openModal(mode, row) {
@@ -199,7 +213,7 @@ export default function ApprovalQueuePanel({ approvals, userRole, onRefresh }) {
                     <StatusBadge status={row.status} />
                   </td>
                   <td className="row-actions col-action">
-                    {canReview ? (
+                    {canReview && isApprovalActionable(row.status) ? (
                       <>
                         <button
                           type="button"
@@ -221,7 +235,7 @@ export default function ApprovalQueuePanel({ approvals, userRole, onRefresh }) {
                         </button>
                       </>
                     ) : (
-                      <span>View only</span>
+                      <span>{row.type === 'Checklist' ? 'Auto-approved' : 'View only'}</span>
                     )}
                   </td>
                 </tr>

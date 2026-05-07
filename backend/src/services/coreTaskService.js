@@ -513,15 +513,12 @@ async function getTasksForApproval(userName, userRole, filters = {}, context = {
   const visibleUserIds = new Set(visibleUsers.map((u) => String(u._id)));
   const visibleUserIdList = [...visibleUserIds];
 
-  const [delegations, workRequests, checklists] = await Promise.all([
+  const [delegations, workRequests] = await Promise.all([
     DelegationTask.find({ status: 'Send for Approval', delegatedToUser: { $in: visibleUserIdList } })
       .populate('delegatedByUser delegatedToUser project', 'name')
       .lean(),
     WorkRequest.find({ status: 'Send for Approval', requestForUser: { $in: visibleUserIdList } })
       .populate('requestedByUser requestForUser project', 'name')
-      .lean(),
-    ChecklistTask.find({ approvalStatus: 'Send for Approval', user: { $in: visibleUserIdList } })
-      .populate('delegatedByUser user project', 'name')
       .lean()
   ]);
 
@@ -558,29 +555,8 @@ async function getTasksForApproval(userName, userRole, filters = {}, context = {
       doerAttachments: x.attachmentByDoer || []
     }));
 
-  const checklistRows = checklists
-    .filter((x) => visibleUserIds.has(String(x.user?._id || '')))
-    .filter((x) => isUserVisible(x.user?.name, visibleNames, userRole, userName))
-    .filter((x) => matchesCommonFilters({ ...x, status: x.approvalStatus }, filters, 'planDate'))
-    .map((x) => ({
-      taskId: x.legacyTaskId || x._id.toString(),
-      delegatedBy: x.delegatedByUser?.name || 'System',
-      taskCompletedBy: x.user?.name || '',
-      userName: x.user?.name || '',
-      taskDescription: x.description,
-      description: x.description,
-      project: x.project?.name || '',
-      status: x.approvalStatus,
-      approvalDate: x.actualDate || x.updatedAt,
-      completionDate: x.actualDate,
-      actionDate: x.actualDate,
-      planDate: x.planDate,
-      doerRemarks: x.remarks || '',
-      doerAttachments: x.attachmentUrls || [],
-      isRework: clean(x.remarks).includes('rework required')
-    }));
-
-  return { delegations: delegationRows, workRequests: workRows, checklists: checklistRows };
+  // Checklist is auto-approved and should never appear in Approve/Review queue.
+  return { delegations: delegationRows, workRequests: workRows, checklists: [] };
 }
 
 async function markChecklistTaskDone(taskId, planDate, remarks, filesData = []) {
