@@ -551,7 +551,7 @@ export default function PlatformPage() {
             <p><strong>Email:</strong> ${credentials.email || ''}</p>
             <p><strong>User ID:</strong> ${credentials.userId || ''}</p>
             <p><strong>Role:</strong> ${credentials.role || ''}</p>
-            <p><strong>Password Hash:</strong> ${credentials.passwordHash || ''}</p>
+            <p><strong>Password Hash:</strong> Hidden</p>
           </div>
         `,
         width: 760

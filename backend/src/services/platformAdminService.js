@@ -390,7 +390,7 @@ export async function updateCompanySubscription(companyId, payload = {}, actor =
 
 export async function listCompanyUsers(companyId) {
   const rows = await User.find({ companyId })
-    .select('name userId email passwordHash role roleName status companyId createdAt')
+    .select('name userId email role roleName status companyId createdAt')
     .sort({ role: 1, name: 1 })
     .lean();
   return {
@@ -400,7 +400,6 @@ export async function listCompanyUsers(companyId) {
       name: row.name,
       userId: row.userId,
       email: row.email,
-      passwordHash: row.passwordHash,
       role: row.roleName || row.role,
       status: row.status,
       companyId: row.companyId,
@@ -634,7 +633,7 @@ export async function listSubscriptions(search = '') {
 export async function getCompanyFullDetails(companyId) {
   const [company, users, roles] = await Promise.all([
     Company.findById(companyId).lean(),
-    User.find({ companyId }).select('name userId email passwordHash role roleName status createdAt').sort({ role: 1, name: 1 }).lean(),
+    User.find({ companyId }).select('name userId email role roleName status createdAt').sort({ role: 1, name: 1 }).lean(),
     Role.find({ companyId }).sort({ isSystemRole: -1, roleName: 1 }).lean()
   ]);
   if (!company) {
@@ -654,7 +653,6 @@ export async function getCompanyFullDetails(companyId) {
       name: user.name,
       userId: user.userId,
       email: user.email,
-      passwordHash: user.passwordHash,
       role: user.roleName || user.role,
       status: user.status,
       createdAt: user.createdAt
@@ -664,7 +662,7 @@ export async function getCompanyFullDetails(companyId) {
 }
 
 export async function getUserCredentials(userId) {
-  const user = await User.findOne({ userId }).select('name userId email passwordHash role roleName status').lean();
+  const user = await User.findOne({ userId }).select('name userId email role roleName status').lean();
   if (!user) {
     throw new ApiError(404, 'User not found');
   }
@@ -674,7 +672,6 @@ export async function getUserCredentials(userId) {
       name: user.name,
       userId: user.userId,
       email: user.email,
-      passwordHash: user.passwordHash,
       role: user.roleName || user.role,
       status: user.status
     }

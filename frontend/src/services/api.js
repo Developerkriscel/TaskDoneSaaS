@@ -53,6 +53,16 @@ export async function rpc(method, ...params) {
   }
 }
 
+export async function rpcSecure(method, ...params) {
+  try {
+    const { data } = await api.post('/rpc/secure', { method, params });
+    return data;
+  } catch (err) {
+    const message = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'RPC call failed';
+    throw new Error(`${method}: ${message}`);
+  }
+}
+
 export const authApi = {
   login: async (userId, password) => {
     const { data } = await api.post('/v1/auth/login', { userId, password });
@@ -72,36 +82,36 @@ export const authApi = {
 
 export const legacyApi = {
   checkCredentials: (userId, password) => rpc('checkCredentials', userId, password),
-  getUnifiedAppData: (userName, userRole) => rpc('getUnifiedAppData', userName, userRole),
-  getDashboardPageData: (userName, userRole, filters = {}) => rpc('getDashboardPageData', userName, userRole, filters),
-  getAllPendingTasksForUser: (userName) => rpc('getAllPendingTasksForUser', userName),
-  getTasksForApproval: (userName, userRole, filters = {}) => rpc('getTasksForApproval', userName, userRole, filters),
-  getNotificationCounts: (userName, userRole) => rpc('getNotificationCounts', userName, userRole),
-  getDelegatedTasksForEmployee: (userName, filters = {}) => rpc('getDelegatedTasksForEmployee', userName, filters),
-  getChecklistTasksForEmployee: (userName, filters = {}) => rpc('getChecklistTasksForEmployee', userName, filters),
-  getUserWorkRequests: (userName, filters = {}) => rpc('getUserWorkRequests', userName, filters),
-  saveTask: (tasks, userName) => rpc('saveTask', tasks, userName),
-  saveChecklistTask: (taskData, userName) => rpc('saveChecklistTask', taskData, userName),
-  saveWorkRequest: (requests, userName) => rpc('saveWorkRequest', requests, userName),
-  submitTaskWrapper: (actionType, id, remarks) => rpc('submitTaskWrapper', actionType, id, remarks),
+  getUnifiedAppData: (userName, userRole) => rpcSecure('getUnifiedAppData', userName, userRole),
+  getDashboardPageData: (userName, userRole, filters = {}) => rpcSecure('getDashboardPageData', userName, userRole, filters),
+  getAllPendingTasksForUser: (userName) => rpcSecure('getAllPendingTasksForUser', userName),
+  getTasksForApproval: (userName, userRole, filters = {}) => rpcSecure('getTasksForApproval', userName, userRole, filters),
+  getNotificationCounts: (userName, userRole) => rpcSecure('getNotificationCounts', userName, userRole),
+  getDelegatedTasksForEmployee: (userName, filters = {}) => rpcSecure('getDelegatedTasksForEmployee', userName, filters),
+  getChecklistTasksForEmployee: (userName, filters = {}) => rpcSecure('getChecklistTasksForEmployee', userName, filters),
+  getUserWorkRequests: (userName, filters = {}) => rpcSecure('getUserWorkRequests', userName, filters),
+  saveTask: (tasks, userName) => rpcSecure('saveTask', tasks, userName),
+  saveChecklistTask: (taskData, userName) => rpcSecure('saveChecklistTask', taskData, userName),
+  saveWorkRequest: (requests, userName) => rpcSecure('saveWorkRequest', requests, userName),
+  submitTaskWrapper: (actionType, id, remarks) => rpcSecure('submitTaskWrapper', actionType, id, remarks),
   updateStatusWrapper: (type, id, status, remarks, planDate = null) =>
-    rpc('updateStatusWrapper', type, id, status, remarks, planDate),
-  markChecklistTaskDone: (taskId, planDate, remarks) => rpc('markChecklistTaskDone', taskId, planDate, remarks),
-  getMisData: (userName, userRole, filters = {}) => rpc('getMisData', userName, userRole, filters),
+    rpcSecure('updateStatusWrapper', type, id, status, remarks, planDate),
+  markChecklistTaskDone: (taskId, planDate, remarks) => rpcSecure('markChecklistTaskDone', taskId, planDate, remarks),
+  getMisData: (userName, userRole, filters = {}) => rpcSecure('getMisData', userName, userRole, filters),
   getEmployeePerformanceReport: (userName, userRole, filters = {}) =>
-    rpc('getEmployeePerformanceReport', userName, userRole, filters),
-  getKraMasterData: (userName, userRole, filters = {}) => rpc('getKraMasterData', userName, userRole, filters),
-  getAllReportData: (userName, userRole, filters = {}) => rpc('getAllReportData', userName, userRole, filters),
-  saveMisWeeklySnapshot: (userName, userRole) => rpc('saveMisWeeklySnapshot', userName, userRole),
-  getUsersForManagement: () => rpc('getUsersForManagement'),
-  upsertUser: (userData) => rpc('upsertUser', userData),
-  deleteUser: (userId) => rpc('deleteUser', userId),
-  getHierarchyData: () => rpc('getHierarchyData'),
-  saveHierarchy: (hierarchyData) => rpc('saveHierarchy', hierarchyData),
-  getProjectsWithStatus: () => rpc('getProjectsWithStatus'),
-  manageProject: (action, data) => rpc('manageProject', action, data),
-  getAdminsAndEmployees: () => rpc('getAdminsAndEmployees'),
-  saveFmsSheetSetting: (sheetSetting) => rpc('saveFmsSheetSetting', sheetSetting)
+    rpcSecure('getEmployeePerformanceReport', userName, userRole, filters),
+  getKraMasterData: (userName, userRole, filters = {}) => rpcSecure('getKraMasterData', userName, userRole, filters),
+  getAllReportData: (userName, userRole, filters = {}) => rpcSecure('getAllReportData', userName, userRole, filters),
+  saveMisWeeklySnapshot: (userName, userRole) => rpcSecure('saveMisWeeklySnapshot', userName, userRole),
+  getUsersForManagement: () => rpcSecure('getUsersForManagement'),
+  upsertUser: (userData) => rpcSecure('upsertUser', userData),
+  deleteUser: (userId) => rpcSecure('deleteUser', userId),
+  getHierarchyData: () => rpcSecure('getHierarchyData'),
+  saveHierarchy: (hierarchyData) => rpcSecure('saveHierarchy', hierarchyData),
+  getProjectsWithStatus: () => rpcSecure('getProjectsWithStatus'),
+  manageProject: (action, data) => rpcSecure('manageProject', action, data),
+  getAdminsAndEmployees: () => rpcSecure('getAdminsAndEmployees'),
+  saveFmsSheetSetting: (sheetSetting) => rpcSecure('saveFmsSheetSetting', sheetSetting)
 };
 
 export const platformApi = {

@@ -28,6 +28,9 @@ export const PLATFORM_METHODS = [
   'updatePlatformUser'
 ];
 
+// Keep only minimal public RPC surface for pre-login compatibility.
+const PUBLIC_RPC_METHODS = new Set(['checkCredentials']);
+
 const platformRpcHandlers = {
   getPlatformStats: async () => getPlatformStats(),
   getRenewalsData: async (days, search) => getRenewalsData({ days, search }),
@@ -43,6 +46,10 @@ const platformRpcHandlers = {
 
 export const rpcCall = asyncHandler(async (req, res) => {
   const { method, params = [] } = req.body;
+
+  if (!req.user && !PUBLIC_RPC_METHODS.has(method)) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
 
   if (PLATFORM_METHODS.includes(method)) {
     if (!req.user || (!req.user.isAppAdmin && req.user.role !== 'App Admin')) {

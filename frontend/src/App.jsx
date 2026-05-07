@@ -6,7 +6,8 @@ import PlatformPage from './pages/PlatformPage.jsx';
 import AiChatWidget from './components/AiChatWidget.jsx';
 import { useAuth } from './store/authContext.jsx';
 
-const SECRET_APP_ADMIN_PATH = '/auth/taskdone-platform-2026';
+const APP_ADMIN_LOGIN_PATH = '/platform-login';
+const LEGACY_APP_ADMIN_LOGIN_PATH = '/auth/taskdone-platform-2026';
 
 export default function App() {
   const { user, initializing } = useAuth();
@@ -19,7 +20,8 @@ export default function App() {
     <>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path={SECRET_APP_ADMIN_PATH} element={<AppAdminSecretLoginPage />} />
+        <Route path={APP_ADMIN_LOGIN_PATH} element={<AppAdminSecretLoginPage />} />
+        <Route path={LEGACY_APP_ADMIN_LOGIN_PATH} element={<Navigate to={APP_ADMIN_LOGIN_PATH} replace />} />
         <Route
           path="/"
           element={
@@ -28,7 +30,7 @@ export default function App() {
         />
         <Route
           path="/platform"
-          element={user ? (user.isAppAdmin ? <PlatformPage /> : <Navigate to="/" replace />) : <Navigate to={SECRET_APP_ADMIN_PATH} replace />}
+          element={user ? (user.isAppAdmin ? <PlatformPage /> : <Navigate to="/" replace />) : <Navigate to={APP_ADMIN_LOGIN_PATH} replace />}
         />
         <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
       </Routes>

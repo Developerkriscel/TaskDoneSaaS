@@ -660,6 +660,88 @@
       .filter-shell.open .filter-panel {
         max-height: none;
       }
+
+      .filter-wrapper {
+        gap: 0.75rem;
+      }
+
+      .filter-group-left,
+      .filter-group-right {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .filter-group-left {
+        flex-wrap: wrap;
+      }
+
+      .filter-group-left > div {
+        flex: 1 1 100%;
+        min-width: 0;
+      }
+
+      .filter-group-right {
+        display: grid;
+        grid-template-columns: 2.7rem minmax(0, 1fr);
+        align-items: stretch;
+        gap: 0;
+      }
+
+      .filter-clear-btn {
+        width: 2.7rem;
+        padding: 0;
+        margin-right: 0;
+        border-radius: 0.5rem 0 0 0.5rem;
+      }
+
+      .filter-btn-group {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-radius: 0 0.5rem 0.5rem 0;
+        overflow: hidden;
+      }
+
+      /* Override fixed h-custom height on mobile so multi-row period buttons are visible */
+      .filter-btn-group.h-custom {
+        height: auto !important;
+        min-height: 0 !important;
+      }
+
+      .filter-clear-btn.h-custom {
+        height: auto !important;
+        min-height: 0 !important;
+      }
+
+      .filter-btn {
+        min-width: 0;
+        width: 100%;
+        margin-left: 0;
+        border-left-width: 1px;
+        border-top-width: 1px;
+        border-radius: 0;
+        font-size: 0.78rem;
+        line-height: 1.1;
+        padding: 0.45rem 0.35rem;
+        white-space: normal;
+      }
+
+      .filter-btn:first-child,
+      .filter-btn:last-child {
+        border-radius: 0;
+      }
+
+      .md\\:hidden .filter-date-input {
+        width: 100%;
+        min-width: 0;
+        font-size: 0.84rem;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .filter-btn-group {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     /* --- Updated Filter Bar Styling END --- */
@@ -2367,7 +2449,7 @@ function buildBootstrapCacheKey(userName, userRole) {
 
 function readBootstrapCache(userName, userRole) {
     try {
-        const raw = localStorage.getItem(buildBootstrapCacheKey(userName, userRole));
+        const raw = sessionStorage.getItem(buildBootstrapCacheKey(userName, userRole));
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!parsed || !parsed.ts || !parsed.data) return null;
@@ -2380,13 +2462,25 @@ function readBootstrapCache(userName, userRole) {
 
 function writeBootstrapCache(userName, userRole, data) {
     try {
-        localStorage.setItem(
+        sessionStorage.setItem(
             buildBootstrapCacheKey(userName, userRole),
             JSON.stringify({ ts: Date.now(), data })
         );
     } catch {
         // ignore storage failures
     }
+}
+
+function clearBootstrapCache() {
+    [localStorage, sessionStorage].forEach((storage) => {
+        try {
+            Object.keys(storage)
+                .filter((key) => key.startsWith(APP_BOOTSTRAP_CACHE_KEY))
+                .forEach((key) => storage.removeItem(key));
+        } catch {
+            // ignore storage failures
+        }
+    });
 }
 // Global Cache Store
 let GLOBAL_STORE = {
@@ -6861,14 +6955,14 @@ function triggerCelebration() {
 const CACHE_DURATION = 60 * 60 * 1000; // 1 Hour in milliseconds
 
 function getFromCache(key) {
-    const cached = localStorage.getItem(key);
+    const cached = sessionStorage.getItem(key);
     if (!cached) return null;
     
     const parsed = JSON.parse(cached);
     const now = new Date().getTime();
     
     if (now > parsed.expiry) {
-        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
         return null;
     }
     return parsed.data;
@@ -6879,7 +6973,7 @@ function saveToCache(key, data) {
         data: data,
         expiry: new Date().getTime() + CACHE_DURATION
     };
-    localStorage.setItem(key, JSON.stringify(item));
+    sessionStorage.setItem(key, JSON.stringify(item));
 }
 
         function setupEventListeners() {
@@ -7102,6 +7196,7 @@ function saveToCache(key, data) {
             localStorage.removeItem('td_auth_user');
             localStorage.removeItem('td_token');
             sessionStorage.removeItem('td_token');
+            clearBootstrapCache();
             // ------------------------------------
 
             $('#app-view').hide();
@@ -10377,12 +10472,12 @@ function initializeDataTable(selector, options) {
     showLoading(true);
     google.script.run.withSuccessHandler(data => {
         showLoading(false);
-       const container = $('#approve-task-view');
-       const newSubs = [], reworkSubs = [];
-       const isApprovalActionable = (status) => {
-           const normalized = String(status || '').trim().toLowerCase();
-           return ['send for approval', 'pending', 'rework'].includes(normalized);
-       };
+        const container = $('#approve-task-view');
+        const newSubs = [], reworkSubs = [];
+        const isApprovalActionable = (status) => {
+            const normalized = String(status || '').trim().toLowerCase();
+            return ['send for approval', 'pending', 'rework'].includes(normalized);
+        };
         
         // Data Processing
         ['delegations', 'workRequests', 'checklists'].forEach(type => {
