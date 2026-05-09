@@ -7,7 +7,7 @@ import { User } from '../models/User.js';
 import { AppSetting } from '../models/AppSetting.js';
 import { ApiError } from '../utils/ApiError.js';
 import { recordPlatformAudit } from './platformAuditService.js';
-import { resetMailTransportCache, sendEmail } from './notificationService.js';
+import { composeProfessionalEmailTemplate, resetMailTransportCache, sendEmail } from './notificationService.js';
 
 const PLAN_CATALOG = {
   Basic: { monthlyRate: 4999, maxUsers: 25 },
@@ -875,12 +875,24 @@ async function sendNotificationTestEmailByCompanyId(companyId, payload = {}, act
   if (!to) {
     throw new ApiError(400, 'Recipient test email is required');
   }
+  const tpl = await composeProfessionalEmailTemplate({
+    category: 'System',
+    action: 'Notification Configuration Test',
+    recipientName: actor?.name || 'Team Member',
+    title: 'TaskDone Notification Test Mail',
+    body: 'This is a system validation email. Sender identity and SMTP configuration are correctly set up.',
+    details: {
+      Environment: process.env.NODE_ENV || 'development',
+      CompanyId: String(companyId || ''),
+      TriggeredBy: actor?.email || 'manual'
+    }
+  });
   const result = await sendEmail({
     to,
     companyId,
-    subject: 'TaskEasy Notification Test Mail',
-    html: '<div><h3>TaskEasy Mail Test</h3><p>Your sender and SMTP settings are working.</p></div>',
-    text: 'TaskEasy Mail Test: sender and SMTP settings are working.'
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text
   });
   if (!result.success) {
     throw new ApiError(400, result.error || 'Failed to send test email');

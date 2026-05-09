@@ -8,7 +8,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { parseDateSafe, getDateRangeYmd, toYmdInt, isDateInRange } from '../utils/dateFilters.js';
 import { getCached, setCached, clearCached } from '../utils/cache.js';
 import { getCacheClient } from '../config/cacheClient.js';
-import { sendEmail } from './notificationService.js';
+import { composeProfessionalEmailTemplate, sendEmail } from './notificationService.js';
 import { uploadAttachmentDataUri } from './uploadService.js';
 import { DelegationTask } from '../models/DelegationTask.js';
 import { WorkRequest } from '../models/WorkRequest.js';
@@ -806,13 +806,18 @@ async function getEmailForUserCompat(userName) {
 }
 
 async function createEmailTemplateCompat(kind, payload = {}) {
-  const safeKind = String(kind || 'notification').trim();
-  const title = payload.title || `${safeKind} update`;
-  const body = payload.body || 'Please review the latest task update in TaskEasy.';
-  return {
-    subject: `[TaskEasy] ${title}`,
-    html: `<div><h3>${title}</h3><p>${body}</p></div>`
-  };
+  const safeKind = String(kind || 'Notification').trim();
+  const title = String(payload.title || `${safeKind} Update`).trim();
+  const body = String(payload.body || 'Please review the latest task update in TaskDone.').trim();
+  const details = payload.details && typeof payload.details === 'object' ? payload.details : {};
+  return composeProfessionalEmailTemplate({
+    category: safeKind,
+    action: title,
+    recipientName: payload.recipientName || payload.toUserName || 'Team Member',
+    title,
+    body,
+    details
+  });
 }
 
 async function shouldSendNotificationCompat(kind = '', companyId = null) {
@@ -821,7 +826,9 @@ async function shouldSendNotificationCompat(kind = '', companyId = null) {
   const flags = row?.value?.notifications || {};
   const map = {
     delegation: 'assignment',
+    checklist: 'submission',
     workrequest: 'submission',
+    submission: 'submission',
     completion: 'approval',
     rework: 'rework'
   };
@@ -839,9 +846,12 @@ async function sendDelegationEmailCompat(toUserName, payload = {}) {
   if (!to) return { success: false, error: 'Recipient email not found.' };
   const tpl = await createEmailTemplateCompat('Delegation', {
     title: payload.title || 'New Delegation Task',
-    body: payload.body || `A delegation task has been assigned to ${toUserName}.`
+    body: payload.body || `A delegation task has been assigned to ${toUserName}.`,
+    recipientName: toUserName,
+    toUserName,
+    details: payload.details || {}
   });
-  return sendEmail({ to, companyId: recipient.companyId, subject: tpl.subject, html: tpl.html });
+  return sendEmail({ to, companyId: recipient.companyId, subject: tpl.subject, html: tpl.html, text: tpl.text });
 }
 
 async function sendWorkRequestEmailCompat(toUserName, payload = {}) {
@@ -853,9 +863,12 @@ async function sendWorkRequestEmailCompat(toUserName, payload = {}) {
   if (!to) return { success: false, error: 'Recipient email not found.' };
   const tpl = await createEmailTemplateCompat('Work Request', {
     title: payload.title || 'Work Request Update',
-    body: payload.body || `A work request update is available for ${toUserName}.`
+    body: payload.body || `A work request update is available for ${toUserName}.`,
+    recipientName: toUserName,
+    toUserName,
+    details: payload.details || {}
   });
-  return sendEmail({ to, companyId: recipient.companyId, subject: tpl.subject, html: tpl.html });
+  return sendEmail({ to, companyId: recipient.companyId, subject: tpl.subject, html: tpl.html, text: tpl.text });
 }
 
 async function sendCompletionNotificationCompat(toUserName, payload = {}) {
@@ -867,9 +880,29 @@ async function sendCompletionNotificationCompat(toUserName, payload = {}) {
   if (!to) return { success: false, error: 'Recipient email not found.' };
   const tpl = await createEmailTemplateCompat('Completion', {
     title: payload.title || 'Task Completion Notification',
-    body: payload.body || `${toUserName}, a task has been completed and is ready for review.`
+    body: payload.body || `${toUserName}, a task has been completed and is ready for review.`,
+    recipientName: toUserName,
+    toUserName,
+    details: payload.details || {}
   });
-  return sendEmail({ to, companyId: recipient.companyId, subject: tpl.subject, html: tpl.html });
+  return sendEmail({ to, companyId: recipient.companyId, subject: tpl.subject, html: tpl.html, text: tpl.text });
+}
+
+async function sendChecklistEmailCompat(toUserName, payload = {}) {
+  const recipient = await getEmailRecipientCompat(toUserName);
+  if (!(await shouldSendNotificationCompat('submission', recipient.companyId))) {
+    return { success: true, skipped: true, reason: 'Checklist email disabled in platform settings.' };
+  }
+  const to = payload.to || recipient.email;
+  if (!to) return { success: false, error: 'Recipient email not found.' };
+  const tpl = await createEmailTemplateCompat('Checklist', {
+    title: payload.title || 'Checklist Task Update',
+    body: payload.body || `A checklist update is available for ${toUserName}.`,
+    recipientName: toUserName,
+    toUserName,
+    details: payload.details || {}
+  });
+  return sendEmail({ to, companyId: recipient.companyId, subject: tpl.subject, html: tpl.html, text: tpl.text });
 }
 
 async function fixAppSpeedCompat() {
@@ -1006,6 +1039,7 @@ const methodMap = {
   getWorkRequestSubmissionsForEmployee: getWorkRequestSubmissionsForEmployeeCompat,
   sendDelegationEmail: sendDelegationEmailCompat,
   sendWorkRequestEmail: sendWorkRequestEmailCompat,
+  sendChecklistEmail: sendChecklistEmailCompat,
   sendCompletionNotification: sendCompletionNotificationCompat,
   getEmailForUser: getEmailForUserCompat,
   createEmailTemplate: createEmailTemplateCompat,

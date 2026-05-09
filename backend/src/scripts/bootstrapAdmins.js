@@ -24,14 +24,17 @@ async function upsertUser({ name, number, userId, email, password, role }) {
 async function main() {
   await connectDb(process.env.MONGODB_URI);
 
-  await upsertUser({
-    name: process.env.BOOTSTRAP_SUPERADMIN_NAME || 'Super Admin',
-    number: process.env.BOOTSTRAP_SUPERADMIN_NUMBER || '9999999999',
-    userId: process.env.BOOTSTRAP_SUPERADMIN_USERID || 'superadmin',
-    email: process.env.BOOTSTRAP_SUPERADMIN_EMAIL || 'superadmin@taskdone.local',
-    password: process.env.BOOTSTRAP_SUPERADMIN_PASSWORD || 'SuperAdmin@123',
-    role: 'Super Admin'
-  });
+  const includeSuperAdmin = String(process.env.BOOTSTRAP_INCLUDE_SUPERADMIN || 'false').toLowerCase() === 'true';
+  if (includeSuperAdmin) {
+    await upsertUser({
+      name: process.env.BOOTSTRAP_SUPERADMIN_NAME || 'Super Admin',
+      number: process.env.BOOTSTRAP_SUPERADMIN_NUMBER || '9999999999',
+      userId: process.env.BOOTSTRAP_SUPERADMIN_USERID || 'superadmin',
+      email: process.env.BOOTSTRAP_SUPERADMIN_EMAIL || 'superadmin@taskdone.local',
+      password: process.env.BOOTSTRAP_SUPERADMIN_PASSWORD || 'SuperAdmin@123',
+      role: 'Super Admin'
+    });
+  }
 
   await upsertUser({
     name: process.env.BOOTSTRAP_APPADMIN_NAME || 'App Admin',
@@ -42,7 +45,11 @@ async function main() {
     role: 'App Admin'
   });
 
-  console.log('Bootstrap complete: Super Admin and App Admin are ready.');
+  console.log(
+    includeSuperAdmin
+      ? 'Bootstrap complete: Super Admin and App Admin are ready.'
+      : 'Bootstrap complete: App Admin is ready. Super Admin was not modified.'
+  );
   process.exit(0);
 }
 

@@ -11,6 +11,7 @@ import { FmsFlow } from '../models/FmsFlow.js';
 import { calculateDelay, getDateRangeYmd, isDateInRange } from '../utils/dateFilters.js';
 import { withLock } from '../utils/mutex.js';
 import { fetchFmsRows, markFmsDoneByRow } from './fmsSheetsService.js';
+import { composeProfessionalEmailTemplate, sendEmail } from './notificationService.js';
 
 function clean(value) {
   return String(value || '').trim().toLowerCase();
@@ -91,6 +92,40 @@ function matchesCommonFilters(entity, filters, dateField) {
 
 function toMetricBucket() {
   return { total: 0, done: 0, pending: 0, tasksDelayed: 0, totalDelayDays: 0, doneOnTime: 0 };
+}
+
+async function sendWorkflowMailSafe({
+  toUser,
+  companyId = null,
+  category = 'Notification',
+  action = 'Status Update',
+  title = '',
+  body = '',
+  details = {}
+} = {}) {
+  const recipient = toUser && typeof toUser === 'object' ? toUser : null;
+  if (!recipient?.email) return;
+
+  try {
+    const tpl = await composeProfessionalEmailTemplate({
+      category,
+      action,
+      recipientName: recipient.name || 'Team Member',
+      title,
+      body,
+      details
+    });
+
+    await sendEmail({
+      to: recipient.email,
+      companyId: companyId || recipient.companyId || null,
+      subject: tpl.subject,
+      html: tpl.html,
+      text: tpl.text
+    });
+  } catch (error) {
+    console.error('[mail] workflow notification failed:', error?.message || error);
+  }
 }
 
 async function getDashboardPageData(userName, userRole, filters = {}, context = {}) {
@@ -789,6 +824,7 @@ async function saveTask(tasks, userName, context = {}) {
   const assigneeNames = [...new Set(normalizedTasks.map((t) => t.delegatedTo).flat())];
   const assignees = await User.find({ ...companyScope, name: { $in: assigneeNames } }).lean();
   const userMap = new Map(assignees.map((u) => [u.name, u._id]));
+  const assigneeById = new Map(assignees.map((u) => [String(u._id), u]));
 
   const last = await DelegationTask.findOne().sort({ legacyTaskId: -1 }).lean();
   let nextId = Number(last?.legacyTaskId || 0) + 1;
@@ -820,6 +856,27 @@ async function saveTask(tasks, userName, context = {}) {
   if (inserts.length === 0) return 'No valid assignees found.';
 
   await DelegationTask.insertMany(inserts);
+
+  await Promise.allSettled(
+    inserts.map((row) => {
+      const target = assigneeById.get(String(row.delegatedToUser));
+      const projectName = projects.find((p) => String(p._id) === String(row.project))?.name || 'General';
+      return sendWorkflowMailSafe({
+        toUser: target,
+        category: 'Delegation',
+        action: 'New Task Assigned',
+        title: 'New Delegation Task Assigned',
+        body: `A new delegation task has been assigned by ${fromUser.name}. Please review and take action.`,
+        details: {
+          Project: projectName,
+          Priority: row.priority || 'Medium',
+          DueDate: row.targetDate ? new Date(row.targetDate).toISOString().slice(0, 10) : 'Not Set',
+          Task: row.description
+        }
+      });
+    })
+  );
+
   return 'success';
 }
 
@@ -851,6 +908,7 @@ async function saveChecklistTask(taskData, userName, context = {}) {
   const employeeNames = [...new Set(normalizedRows.map((r) => r.employee).filter(Boolean))];
   const targets = await User.find({ ...companyScope, name: { $in: employeeNames } }).select('_id name').lean();
   const targetMap = new Map(targets.map((u) => [u.name, u._id]));
+  const targetById = new Map(targets.map((u) => [String(u._id), u]));
 
   const projectNames = [...new Set(normalizedRows.map((r) => r.project).filter(Boolean))];
   const projects = await Project.find({ ...companyScope, name: { $in: projectNames } }).select('_id name').lean();
@@ -908,6 +966,25 @@ async function saveChecklistTask(taskData, userName, context = {}) {
 
   if (immediateTasks.length > 0) {
     await ChecklistTask.insertMany(immediateTasks);
+    await Promise.allSettled(
+      immediateTasks.map((row) => {
+        const target = targetById.get(String(row.user));
+        const projectName = projects.find((p) => String(p._id) === String(row.project))?.name || 'General';
+        return sendWorkflowMailSafe({
+          toUser: target,
+          category: 'Checklist',
+          action: 'Checklist Task Assigned',
+          title: 'New Checklist Task Assigned',
+          body: `A new checklist task has been created by ${creator.name}. Please complete it within schedule.`,
+          details: {
+            Project: projectName,
+            Frequency: row.frequency || 'Daily',
+            PlanDate: row.planDate ? new Date(row.planDate).toISOString().slice(0, 10) : 'Not Set',
+            Task: row.description
+          }
+        });
+      })
+    );
   }
 
   return 'success';
@@ -1060,6 +1137,7 @@ async function saveWorkRequest(requests, userName, context = {}) {
   }));
   const targets = await User.find({ ...companyScope, name: { $in: payloads.map((x) => x.requestFor) } }).lean();
   const tMap = new Map(targets.map((u) => [u.name, u._id]));
+  const targetById = new Map(targets.map((u) => [String(u._id), u]));
 
   const pNames = [...new Set(payloads.map((x) => x.project).filter(Boolean))];
   const projects = await Project.find({ ...companyScope, name: { $in: pNames } }).lean();
@@ -1085,6 +1163,26 @@ async function saveWorkRequest(requests, userName, context = {}) {
   if (!inserts.length) return 'No valid assignees found.';
 
   await WorkRequest.insertMany(inserts);
+
+  await Promise.allSettled(
+    inserts.map((row) => {
+      const target = targetById.get(String(row.requestForUser));
+      const projectName = projects.find((p) => String(p._id) === String(row.project))?.name || 'General';
+      return sendWorkflowMailSafe({
+        toUser: target,
+        category: 'Work Request',
+        action: 'New Work Request Assigned',
+        title: 'New Work Request Assigned',
+        body: `A work request has been assigned by ${requester.name}. Please review and act on it.`,
+        details: {
+          Project: projectName,
+          Deadline: row.deadline ? new Date(row.deadline).toISOString().slice(0, 10) : 'Not Set',
+          Task: row.description
+        }
+      });
+    })
+  );
+
   return 'success';
 }
 
@@ -1097,7 +1195,7 @@ async function updateStatusWrapper(type, id, status, remarks, planDate) {
 
   if (normalizedType === 'delegation' || normalizedType === 'task') {
     const query = String(id).length === 24 ? { _id: id } : { legacyTaskId: Number(id) };
-    const row = await DelegationTask.findOne(query);
+    const row = await DelegationTask.findOne(query).populate('delegatedByUser delegatedToUser project', 'name email companyId');
     if (!row) return 'Task not found.';
 
     row.status = status;
@@ -1112,12 +1210,30 @@ async function updateStatusWrapper(type, id, status, remarks, planDate) {
       row.reworkRemark = remarks || '';
     }
     await row.save();
+    if (status === 'Completed' || status === 'Rework') {
+      await sendWorkflowMailSafe({
+        toUser: row.delegatedByUser,
+        category: 'Delegation',
+        action: status === 'Completed' ? 'Task Completed' : 'Task Rework Requested',
+        title: `Delegation ${status}`,
+        body:
+          status === 'Completed'
+            ? `${row.delegatedToUser?.name || 'Assignee'} completed a delegation task.`
+            : `${row.delegatedToUser?.name || 'Assignee'} marked a delegation task for rework.`,
+        details: {
+          Project: row.project?.name || 'General',
+          Assignee: row.delegatedToUser?.name || '',
+          Status: status,
+          Remarks: remarks || ''
+        }
+      });
+    }
     return 'success';
   }
 
   if (normalizedType === 'workrequest') {
     const query = String(id).length === 24 ? { _id: id } : { legacyRequestId: Number(id) };
-    const row = await WorkRequest.findOne(query);
+    const row = await WorkRequest.findOne(query).populate('requestedByUser requestForUser project', 'name email companyId');
     if (!row) return 'Request not found.';
 
     row.status = status;
@@ -1133,6 +1249,24 @@ async function updateStatusWrapper(type, id, status, remarks, planDate) {
       row.completionDate = null;
     }
     await row.save();
+    if (status === 'Completed' || status === 'Rework') {
+      await sendWorkflowMailSafe({
+        toUser: row.requestedByUser,
+        category: 'Work Request',
+        action: status === 'Completed' ? 'Request Completed' : 'Request Rework Requested',
+        title: `Work Request ${status}`,
+        body:
+          status === 'Completed'
+            ? `${row.requestForUser?.name || 'Assignee'} completed a work request.`
+            : `${row.requestForUser?.name || 'Assignee'} marked a work request for rework.`,
+        details: {
+          Project: row.project?.name || 'General',
+          Assignee: row.requestForUser?.name || '',
+          Status: status,
+          Remarks: remarks || ''
+        }
+      });
+    }
     return 'success';
   }
 
@@ -1163,6 +1297,30 @@ async function updateStatusWrapper(type, id, status, remarks, planDate) {
       }
 
       await row.save();
+      if (status === 'Completed' || status === 'Rework') {
+        const [creator, assignee, project] = await Promise.all([
+          row.delegatedByUser ? User.findById(row.delegatedByUser).select('name email companyId').lean() : Promise.resolve(null),
+          row.user ? User.findById(row.user).select('name email companyId').lean() : Promise.resolve(null),
+          row.project ? Project.findById(row.project).select('name').lean() : Promise.resolve(null)
+        ]);
+        await sendWorkflowMailSafe({
+          toUser: creator,
+          companyId: creator?.companyId || assignee?.companyId || null,
+          category: 'Checklist',
+          action: status === 'Completed' ? 'Checklist Completed' : 'Checklist Rework Requested',
+          title: `Checklist ${status}`,
+          body:
+            status === 'Completed'
+              ? `${assignee?.name || 'Assignee'} completed a checklist task.`
+              : `${assignee?.name || 'Assignee'} marked a checklist task for rework.`,
+          details: {
+            Project: project?.name || 'General',
+            Assignee: assignee?.name || '',
+            Status: status,
+            Remarks: remarks || ''
+          }
+        });
+      }
       return 'success';
     });
   }
@@ -1173,25 +1331,49 @@ async function updateStatusWrapper(type, id, status, remarks, planDate) {
 async function submitTaskWrapper(actionType, id, remarks) {
   if (actionType === 'Task') {
     const query = String(id).length === 24 ? { _id: id } : { legacyTaskId: Number(id) };
-    const row = await DelegationTask.findOne(query);
+    const row = await DelegationTask.findOne(query).populate('delegatedByUser delegatedToUser project', 'name email companyId');
     if (!row) return 'Task not found.';
 
     row.status = 'Send for Approval';
     row.actionDate = new Date();
     row.finalRemarksByDoer = remarks || '';
     await row.save();
+    await sendWorkflowMailSafe({
+      toUser: row.delegatedByUser,
+      category: 'Delegation',
+      action: 'Submitted For Approval',
+      title: 'Delegation Submitted For Approval',
+      body: `${row.delegatedToUser?.name || 'Assignee'} submitted a delegation task for approval.`,
+      details: {
+        Project: row.project?.name || 'General',
+        Assignee: row.delegatedToUser?.name || '',
+        Remarks: remarks || ''
+      }
+    });
     return 'success';
   }
 
   if (actionType === 'Work Request') {
     const query = String(id).length === 24 ? { _id: id } : { legacyRequestId: Number(id) };
-    const row = await WorkRequest.findOne(query);
+    const row = await WorkRequest.findOne(query).populate('requestedByUser requestForUser project', 'name email companyId');
     if (!row) return 'Work request not found.';
 
     row.status = 'Send for Approval';
     row.remarksByDoer = remarks || '';
     row.completionDate = new Date();
     await row.save();
+    await sendWorkflowMailSafe({
+      toUser: row.requestedByUser,
+      category: 'Work Request',
+      action: 'Submitted For Approval',
+      title: 'Work Request Submitted For Approval',
+      body: `${row.requestForUser?.name || 'Assignee'} submitted a work request for approval.`,
+      details: {
+        Project: row.project?.name || 'General',
+        Assignee: row.requestForUser?.name || '',
+        Remarks: remarks || ''
+      }
+    });
     return 'success';
   }
 

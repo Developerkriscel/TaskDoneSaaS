@@ -1,13 +1,11 @@
 import axios from 'axios';
 
-const defaultProductionApiBase = 'https://taskdone-ehkm.onrender.com/api';
 const defaultLocalApiBase = 'http://localhost:8080/api';
 const runtimeApiBase = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}/api` : 'http://localhost:8080/api';
 const isLocalHost =
   typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const configuredApiBase =
-  import.meta.env.VITE_API_BASE_URL ||
-  (typeof window !== 'undefined' ? window.__TASKDONE_API_BASE_URL__ || (isLocalHost ? defaultLocalApiBase : defaultProductionApiBase) : '');
+const configuredApiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.__TASKDONE_API_BASE_URL__ || '' : '');
+const fallbackApiBase = isLocalHost ? defaultLocalApiBase : runtimeApiBase;
 const normalizedConfiguredApiBase =
   typeof window !== 'undefined' && configuredApiBase && configuredApiBase.includes('://localhost:')
     ? configuredApiBase.replace('://localhost:', `://${window.location.hostname}:`)
@@ -30,7 +28,7 @@ export function setAuthToken(token) {
 }
 
 const api = axios.create({
-  baseURL: normalizedConfiguredApiBase || runtimeApiBase,
+  baseURL: normalizedConfiguredApiBase || fallbackApiBase,
   withCredentials: true
 });
 

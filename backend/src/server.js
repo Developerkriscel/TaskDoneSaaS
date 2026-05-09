@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { createApp } from './app.js';
 import { connectDb } from './config/db.js';
+import { validateEnv } from './config/env.js';
 import { registerCronJobs } from './jobs/cronJobs.js';
 
 const PORT = Number(process.env.PORT || 8080);
@@ -17,6 +18,8 @@ async function isExistingBackendHealthy(port) {
 }
 
 async function bootstrap() {
+  validateEnv();
+
   const healthy = await isExistingBackendHealthy(PORT);
   if (healthy) {
     console.log(`Backend already running on port ${PORT}.`);
