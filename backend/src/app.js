@@ -54,7 +54,30 @@ export function createApp() {
   app.use(helmet());
   app.use(compression());
   app.use(cors(buildCorsOptions()));
-  app.use(express.json({ limit: '10mb' }));
+
+  // JSON parsing with proper error handling - prevents stack trace leaks
+  app.use(
+    express.json({
+      limit: '10mb',
+      verify: (req, res, buf) => {
+        // Just verify the buffer can be parsed without throwing
+        // Express handles JSON errors automatically when using the error handler
+      }
+    })
+  );
+
+  // Catch JSON parsing errors before they leak stack traces
+  app.use((err, req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+      // JSON parsing error
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid JSON in request body'
+      });
+    }
+    next(err);
+  });
+
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan('dev'));
 

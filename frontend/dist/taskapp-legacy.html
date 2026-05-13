@@ -2097,7 +2097,7 @@
     window.__TASKDONE_API_BASE_URL__ = window.__TASKDONE_API_BASE_URL__ || (
       ['localhost', '127.0.0.1'].includes(window.location.hostname)
         ? 'http://localhost:8080/api'
-        : 'https://taskdone-ehkm.onrender.com/api'
+        : window.location.protocol + '//' + window.location.host + '/api'
     );
     window.__TASKDONE_TOKEN_KEY__ = 'td_token';
     window.__TASKDONE_READ_TOKEN__ = function () {
