@@ -53,6 +53,70 @@ async function getTeamMembersWithManager(userName, userRole, context = {}) {
   return [userName, ...group.employeeUsers.map((x) => x.name)];
 }
 
+function isObjectIdLike(value) {
+  return /^[a-f\d]{24}$/i.test(String(value || '').trim());
+}
+
+function buildRecordIdQuery(id, legacyField) {
+  const text = String(id ?? '').trim();
+  if (!text) return null;
+  if (isObjectIdLike(text)) return { _id: text };
+
+  const numeric = Number(text);
+  if (Number.isInteger(numeric) && numeric >= 0) {
+    return { [legacyField]: numeric };
+  }
+
+  return null;
+}
+
+function normalizeFilesAndContext(filesData, context) {
+  if (filesData && typeof filesData === 'object' && !Array.isArray(filesData) && filesData.user && !context?.user) {
+    return { filesData: [], context: filesData };
+  }
+
+  return {
+    filesData: Array.isArray(filesData) ? filesData : [],
+    context
+  };
+}
+
+function normalizePlanDateAndContext(planDate, context) {
+  if (planDate && typeof planDate === 'object' && planDate.user && !context?.user) {
+    return { planDate: null, context: planDate };
+  }
+  return { planDate, context };
+}
+
+function normalizeAttachmentUrls(filesData = []) {
+  return (Array.isArray(filesData) ? filesData : [])
+    .map((file) => file?.url || file?.fileUrl || file?.fileName)
+    .filter(Boolean);
+}
+
+function buildSubmitScopeQuery(fieldName, context = {}) {
+  const user = getContextUser(context);
+  if (!user?._id || user.isAppAdmin || user.role === 'App Admin') {
+    return null;
+  }
+  return { [fieldName]: user._id };
+}
+
+async function buildApprovalScopeQuery(fieldName, context = {}) {
+  const user = getContextUser(context);
+  if (!user?._id || user.isAppAdmin || user.role === 'App Admin' || !['Admin', 'Super Admin'].includes(user.role)) {
+    return null;
+  }
+
+  const companyScope = getCompanyScope(context);
+  const members = await getTeamMembersWithManager(user.name, user.role, context);
+  const users = await User.find({ ...companyScope, name: { $in: members } }).select('_id').lean();
+  const visibleUserIds = users.map((item) => item._id);
+  if (!visibleUserIds.length) return null;
+
+  return { [fieldName]: { $in: visibleUserIds } };
+}
+
 function isUserVisible(recordName, visibleNamesSet, userRole, currentUserName) {
   if (userRole === 'Super Admin') return true;
   const current = clean(currentUserName);
@@ -594,12 +658,21 @@ async function getTasksForApproval(userName, userRole, filters = {}, context = {
   return { delegations: delegationRows, workRequests: workRows, checklists: [] };
 }
 
-async function markChecklistTaskDone(taskId, planDate, remarks, filesData = []) {
+async function markChecklistTaskDone(taskId, planDate, remarks, filesData = [], context = {}) {
+  const normalized = normalizeFilesAndContext(filesData, context);
+  filesData = normalized.filesData;
+  context = normalized.context;
+
   return withLock(`checklist:${taskId}`, async () => {
+    const idQuery = buildRecordIdQuery(taskId, 'legacyTaskId');
+    const submitScope = buildSubmitScopeQuery('user', context);
+    if (!idQuery || !submitScope) return 'Task ID not found.';
+
+    const parsedPlanDate = planDate ? new Date(planDate) : null;
     const query =
-      String(taskId).length === 24
-        ? { _id: taskId }
-        : { legacyTaskId: Number(taskId), planDate: new Date(planDate) };
+      idQuery._id || !parsedPlanDate || Number.isNaN(parsedPlanDate.getTime())
+        ? { ...idQuery, ...submitScope }
+        : { ...idQuery, ...submitScope, planDate: parsedPlanDate };
 
     const row = await ChecklistTask.findOne(query);
     if (!row) return 'Task ID not found.';
@@ -914,6 +987,15 @@ async function saveChecklistTask(taskData, userName, context = {}) {
   const projects = await Project.find({ ...companyScope, name: { $in: projectNames } }).select('_id name').lean();
   const projectMap = new Map(projects.map((p) => [p.name, p._id]));
 
+  const invalidDateRow = normalizedRows.find((row) => {
+    if (!row.startDate) return false;
+    const parsedDate = new Date(row.startDate);
+    return Number.isNaN(parsedDate.getTime());
+  });
+  if (invalidDateRow) {
+    return `Invalid checklist startDate: ${String(invalidDateRow.startDate)}`;
+  }
+
   const normalizeFrequency = (f) => {
     const raw = String(f || 'Daily').trim().toLowerCase();
     if (raw === 'one time') return 'Monthly';
@@ -1135,6 +1217,12 @@ async function saveWorkRequest(requests, userName, context = {}) {
         ? x.filesData.map((f) => f?.fileName).filter(Boolean)
         : []
   }));
+
+  const invalidDeadline = payloads.find((x) => x.deadline && Number.isNaN(new Date(x.deadline).getTime()));
+  if (invalidDeadline) {
+    return `Invalid work request deadline: ${String(invalidDeadline.deadline)}`;
+  }
+
   const targets = await User.find({ ...companyScope, name: { $in: payloads.map((x) => x.requestFor) } }).lean();
   const tMap = new Map(targets.map((u) => [u.name, u._id]));
   const targetById = new Map(targets.map((u) => [String(u._id), u]));
@@ -1186,7 +1274,11 @@ async function saveWorkRequest(requests, userName, context = {}) {
   return 'success';
 }
 
-async function updateStatusWrapper(type, id, status, remarks, planDate) {
+async function updateStatusWrapper(type, id, status, remarks, planDate, context = {}) {
+  const normalized = normalizePlanDateAndContext(planDate, context);
+  planDate = normalized.planDate;
+  context = normalized.context;
+
   const normalizedType = String(type || '')
     .trim()
     .toLowerCase()
@@ -1194,7 +1286,11 @@ async function updateStatusWrapper(type, id, status, remarks, planDate) {
     .replace(/_/g, '');
 
   if (normalizedType === 'delegation' || normalizedType === 'task') {
-    const query = String(id).length === 24 ? { _id: id } : { legacyTaskId: Number(id) };
+    const idQuery = buildRecordIdQuery(id, 'legacyTaskId');
+    const approvalScope = await buildApprovalScopeQuery('delegatedToUser', context);
+    if (!idQuery || !approvalScope) return 'Task not found.';
+
+    const query = { ...idQuery, ...approvalScope };
     const row = await DelegationTask.findOne(query).populate('delegatedByUser delegatedToUser project', 'name email companyId');
     if (!row) return 'Task not found.';
 
@@ -1232,7 +1328,11 @@ async function updateStatusWrapper(type, id, status, remarks, planDate) {
   }
 
   if (normalizedType === 'workrequest') {
-    const query = String(id).length === 24 ? { _id: id } : { legacyRequestId: Number(id) };
+    const idQuery = buildRecordIdQuery(id, 'legacyRequestId');
+    const approvalScope = await buildApprovalScopeQuery('requestForUser', context);
+    if (!idQuery || !approvalScope) return 'Request not found.';
+
+    const query = { ...idQuery, ...approvalScope };
     const row = await WorkRequest.findOne(query).populate('requestedByUser requestForUser project', 'name email companyId');
     if (!row) return 'Request not found.';
 
@@ -1272,10 +1372,15 @@ async function updateStatusWrapper(type, id, status, remarks, planDate) {
 
   if (normalizedType === 'checklist') {
     return withLock(`checklist:${id}`, async () => {
+      const idQuery = buildRecordIdQuery(id, 'legacyTaskId');
+      const approvalScope = await buildApprovalScopeQuery('user', context);
+      if (!idQuery || !approvalScope) return 'Task ID not found.';
+
+      const parsedPlanDate = planDate ? new Date(planDate) : null;
       const query =
-        String(id).length === 24
-          ? { _id: id }
-          : { legacyTaskId: Number(id), ...(planDate ? { planDate: new Date(planDate) } : {}) };
+        idQuery._id || !parsedPlanDate || Number.isNaN(parsedPlanDate.getTime())
+          ? { ...idQuery, ...approvalScope }
+          : { ...idQuery, ...approvalScope, planDate: parsedPlanDate };
 
       const row = await ChecklistTask.findOne(query);
       if (!row) return 'Task ID not found.';
@@ -1328,15 +1433,27 @@ async function updateStatusWrapper(type, id, status, remarks, planDate) {
   return 'Invalid type.';
 }
 
-async function submitTaskWrapper(actionType, id, remarks) {
+async function submitTaskWrapper(actionType, id, remarks, filesData = [], context = {}) {
+  const normalized = normalizeFilesAndContext(filesData, context);
+  filesData = normalized.filesData;
+  context = normalized.context;
+  const attachmentUrls = normalizeAttachmentUrls(filesData);
+
   if (actionType === 'Task') {
-    const query = String(id).length === 24 ? { _id: id } : { legacyTaskId: Number(id) };
+    const idQuery = buildRecordIdQuery(id, 'legacyTaskId');
+    const submitScope = buildSubmitScopeQuery('delegatedToUser', context);
+    if (!idQuery || !submitScope) return 'Task not found.';
+
+    const query = { ...idQuery, ...submitScope };
     const row = await DelegationTask.findOne(query).populate('delegatedByUser delegatedToUser project', 'name email companyId');
     if (!row) return 'Task not found.';
 
     row.status = 'Send for Approval';
     row.actionDate = new Date();
     row.finalRemarksByDoer = remarks || '';
+    if (attachmentUrls.length > 0) {
+      row.attachmentByDoer = attachmentUrls;
+    }
     await row.save();
     await sendWorkflowMailSafe({
       toUser: row.delegatedByUser,
@@ -1354,13 +1471,20 @@ async function submitTaskWrapper(actionType, id, remarks) {
   }
 
   if (actionType === 'Work Request') {
-    const query = String(id).length === 24 ? { _id: id } : { legacyRequestId: Number(id) };
+    const idQuery = buildRecordIdQuery(id, 'legacyRequestId');
+    const submitScope = buildSubmitScopeQuery('requestForUser', context);
+    if (!idQuery || !submitScope) return 'Work request not found.';
+
+    const query = { ...idQuery, ...submitScope };
     const row = await WorkRequest.findOne(query).populate('requestedByUser requestForUser project', 'name email companyId');
     if (!row) return 'Work request not found.';
 
     row.status = 'Send for Approval';
     row.remarksByDoer = remarks || '';
     row.completionDate = new Date();
+    if (attachmentUrls.length > 0) {
+      row.attachmentByDoer = attachmentUrls;
+    }
     await row.save();
     await sendWorkflowMailSafe({
       toUser: row.requestedByUser,

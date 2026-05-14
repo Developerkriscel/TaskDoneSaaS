@@ -133,9 +133,21 @@ if [[ ! -f "$ENV_FILE" ]]; then
   echo ""
   read -p "Enter MONGODB_URI: " MONGODB_URI
   read -p "Enter JWT_SECRET (or press Enter to generate): " JWT_SECRET
+  read -p "Enter BOOTSTRAP_APPADMIN_EMAIL: " BOOTSTRAP_APPADMIN_EMAIL
+  read -s -p "Enter BOOTSTRAP_APPADMIN_PASSWORD (or press Enter to generate): " BOOTSTRAP_APPADMIN_PASSWORD
+  echo ""
 
   if [[ -z "$JWT_SECRET" ]]; then
     JWT_SECRET=$(sudo -u "$APP_USER" node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
+  fi
+  if [[ -z "$BOOTSTRAP_APPADMIN_EMAIL" ]]; then
+    BOOTSTRAP_APPADMIN_EMAIL="admin@${DOMAIN:-localhost}"
+    log_warn "Using BOOTSTRAP_APPADMIN_EMAIL=$BOOTSTRAP_APPADMIN_EMAIL"
+  fi
+  if [[ -z "$BOOTSTRAP_APPADMIN_PASSWORD" ]]; then
+    BOOTSTRAP_APPADMIN_PASSWORD=$(sudo -u "$APP_USER" node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))")
+    log_warn "Generated BOOTSTRAP_APPADMIN_PASSWORD: $BOOTSTRAP_APPADMIN_PASSWORD"
+    log_warn "Store this password securely before running bootstrapAdmins.js."
   fi
 
   cat > "$ENV_FILE" << EOF
@@ -150,6 +162,8 @@ COOKIE_SAMESITE=none
 CORS_ALLOW_ANY_ORIGIN=false
 CORS_ALLOWED_ORIGINS=https://${DOMAIN:-localhost}
 BOOTSTRAP_INCLUDE_SUPERADMIN=false
+BOOTSTRAP_APPADMIN_EMAIL=$BOOTSTRAP_APPADMIN_EMAIL
+BOOTSTRAP_APPADMIN_PASSWORD=$BOOTSTRAP_APPADMIN_PASSWORD
 EOF
   chown "$APP_USER:$APP_USER" "$ENV_FILE"
   chmod 600 "$ENV_FILE"

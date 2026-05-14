@@ -1,21 +1,36 @@
 import axios from 'axios';
 
-const defaultLocalApiBase = 'http://localhost:8080/api';
-const runtimeApiBase = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}/api` : 'http://localhost:8080/api';
+const DEFAULT_LOCAL_API_BASE = 'http://localhost:8080/api';
+const RELATIVE_API_BASE = '/api';
+
 const isLocalHost =
-  typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const configuredApiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.__TASKDONE_API_BASE_URL__ || '' : '');
-const fallbackApiBase = isLocalHost ? defaultLocalApiBase : runtimeApiBase;
-const normalizedConfiguredApiBase =
-  typeof window !== 'undefined' && configuredApiBase && configuredApiBase.includes('://localhost:')
-    ? configuredApiBase.replace('://localhost:', `://${window.location.hostname}:`)
-    : configuredApiBase;
+  typeof window !== 'undefined' &&
+  ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+const configuredApiBase =
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== 'undefined' ? window.__TASKDONE_API_BASE_URL__ || '' : '');
+
+function normalizeApiBase(value) {
+  const base = String(value || '').trim().replace(/\/+$/, '');
+  if (!base) return '';
+  if (typeof window !== 'undefined' && base.includes('://localhost:')) {
+    return base.replace('://localhost:', `://${window.location.hostname}:`);
+  }
+  return base;
+}
+
+const apiBaseUrl = normalizeApiBase(configuredApiBase) || (isLocalHost ? DEFAULT_LOCAL_API_BASE : RELATIVE_API_BASE);
 
 const TOKEN_KEY = 'td_token';
 
 function readStoredToken() {
   if (typeof window === 'undefined') return '';
   return window.sessionStorage.getItem(TOKEN_KEY) || '';
+}
+
+export function hasAuthToken() {
+  return Boolean(readStoredToken());
 }
 
 export function setAuthToken(token) {
@@ -27,8 +42,12 @@ export function setAuthToken(token) {
   }
 }
 
+function getApiErrorMessage(err, fallback = 'Request failed') {
+  return err?.response?.data?.message || err?.response?.data?.error || err?.message || fallback;
+}
+
 const api = axios.create({
-  baseURL: normalizedConfiguredApiBase || fallbackApiBase,
+  baseURL: apiBaseUrl,
   withCredentials: true
 });
 
@@ -63,9 +82,13 @@ export async function rpcSecure(method, ...params) {
 
 export const authApi = {
   login: async (userId, password) => {
-    const { data } = await api.post('/v1/auth/login', { userId, password });
-    if (data?.token) setAuthToken(data.token);
-    return data;
+    try {
+      const { data } = await api.post('/v1/auth/login', { userId, password });
+      if (data?.token) setAuthToken(data.token);
+      return data;
+    } catch (err) {
+      throw new Error(getApiErrorMessage(err, 'Login failed'));
+    }
   },
   me: async () => {
     const { data } = await api.get('/v1/auth/me');

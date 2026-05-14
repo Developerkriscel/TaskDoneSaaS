@@ -3,6 +3,14 @@ import bcrypt from 'bcryptjs';
 import { connectDb } from '../config/db.js';
 import { User } from '../models/User.js';
 
+function requiredEnv(key) {
+  const value = String(process.env[key] || '').trim();
+  if (!value) {
+    throw new Error(`${key} is required for admin bootstrap`);
+  }
+  return value;
+}
+
 async function upsertUser({ name, number, userId, email, password, role }) {
   const passwordHash = await bcrypt.hash(password, 10);
   const update = {
@@ -30,8 +38,8 @@ async function main() {
       name: process.env.BOOTSTRAP_SUPERADMIN_NAME || 'Super Admin',
       number: process.env.BOOTSTRAP_SUPERADMIN_NUMBER || '9999999999',
       userId: process.env.BOOTSTRAP_SUPERADMIN_USERID || 'superadmin',
-      email: process.env.BOOTSTRAP_SUPERADMIN_EMAIL || 'superadmin@taskdone.local',
-      password: process.env.BOOTSTRAP_SUPERADMIN_PASSWORD || 'SuperAdmin@123',
+      email: requiredEnv('BOOTSTRAP_SUPERADMIN_EMAIL'),
+      password: requiredEnv('BOOTSTRAP_SUPERADMIN_PASSWORD'),
       role: 'Super Admin'
     });
   }
@@ -40,8 +48,8 @@ async function main() {
     name: process.env.BOOTSTRAP_APPADMIN_NAME || 'App Admin',
     number: process.env.BOOTSTRAP_APPADMIN_NUMBER || '8888888888',
     userId: process.env.BOOTSTRAP_APPADMIN_USERID || 'appadmin',
-    email: process.env.BOOTSTRAP_APPADMIN_EMAIL || 'appadmin@taskdone.local',
-    password: process.env.BOOTSTRAP_APPADMIN_PASSWORD || 'AppAdmin@123',
+    email: requiredEnv('BOOTSTRAP_APPADMIN_EMAIL'),
+    password: requiredEnv('BOOTSTRAP_APPADMIN_PASSWORD'),
     role: 'App Admin'
   });
 

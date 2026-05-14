@@ -70,17 +70,29 @@ function getCompanyScope(context = {}) {
 }
 
 async function checkCredentials(userId, password) {
-  const user = await User.findOne({ userId }).lean();
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId || !password) {
+    return { isValid: false, error: 'Invalid User ID or Password.' };
+  }
+
+  const user = await User.findOne({ userId: normalizedUserId }).lean();
   if (!user) {
     return { isValid: false, error: 'Invalid User ID or Password.' };
   }
   if (user.status !== 'Active') {
     return { isValid: false, error: 'Your account is inactive. Please contact admin.' };
   }
+  if (typeof user.passwordHash !== 'string' || !user.passwordHash.startsWith('$2')) {
+    return { isValid: false, error: 'Invalid User ID or Password.' };
+  }
 
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) {
     return { isValid: false, error: 'Invalid User ID or Password.' };
+  }
+
+  if (!process.env.JWT_SECRET) {
+    throw new ApiError(500, 'Authentication is not configured. Set JWT_SECRET in backend environment.');
   }
 
   const token = jwt.sign({ sub: user._id.toString(), role: user.role }, process.env.JWT_SECRET, {
@@ -99,13 +111,29 @@ async function checkCredentials(userId, password) {
   };
 }
 
+async function ensureDefaultProject(companyId, createdBy = null) {
+  if (!companyId) return;
+  const existing = await Project.findOne({ companyId, name: 'General' }).lean();
+  if (!existing) {
+    await Project.create({ companyId, name: 'General', status: 'Active', createdBy });
+  }
+}
+
 async function getProjectsWithStatus(context = {}) {
-  const projects = await Project.find(getCompanyScope(context)).select('name status').sort({ name: 1 }).lean();
+  const companyScope = getCompanyScope(context);
+  if (companyScope.companyId) {
+    await ensureDefaultProject(companyScope.companyId, getContextUser(context)?._id || null);
+  }
+  const projects = await Project.find(companyScope).select('name status').sort({ name: 1 }).lean();
   return projects.map((p) => ({ name: p.name, status: p.status }));
 }
 
 async function getProjects(context = {}) {
-  const projects = await Project.find({ ...getCompanyScope(context), status: 'Active' }).select('name').sort({ name: 1 }).lean();
+  const companyScope = getCompanyScope(context);
+  if (companyScope.companyId) {
+    await ensureDefaultProject(companyScope.companyId, getContextUser(context)?._id || null);
+  }
+  const projects = await Project.find({ ...companyScope, status: 'Active' }).select('name').sort({ name: 1 }).lean();
   return projects.map((p) => p.name);
 }
 
@@ -118,7 +146,7 @@ async function getAdminsAndEmployees(context = {}) {
   const users = await User.find({ ...getCompanyScope(context), status: 'Active' }).select('name role').lean();
   return {
     admins: users.filter((u) => ['Admin', 'Super Admin'].includes(u.role)).map((u) => u.name),
-    employees: users.filter((u) => u.role === 'Employee').map((u) => u.name)
+    employees: users.map((u) => u.name)
   };
 }
 

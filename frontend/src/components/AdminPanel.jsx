@@ -366,10 +366,10 @@ export default function AdminPanel({ user, defaultTab = 'Users' }) {
                       <StatusBadge status={row.status} />
                     </td>
                     <td className="row-actions col-action">
-                      <button type="button" onClick={() => startEditUser(row)}>
+                      <button type="button" className="platform-table-btn" onClick={() => startEditUser(row)}>
                         Edit
                       </button>
-                      <button type="button" className="btn-danger" onClick={() => removeUser(row.userId)}>
+                      <button type="button" className="platform-table-btn btn-danger" onClick={() => removeUser(row.userId)}>
                         Delete
                       </button>
                     </td>
@@ -465,10 +465,10 @@ export default function AdminPanel({ user, defaultTab = 'Users' }) {
                       <StatusBadge status={row.status} />
                     </td>
                     <td className="row-actions col-action">
-                      <button type="button" onClick={() => toggleProject(row.name)}>
+                      <button type="button" className="platform-table-btn" onClick={() => toggleProject(row.name)}>
                         Toggle Status
                       </button>
-                      <button type="button" className="btn-danger" onClick={() => deleteProject(row.name)}>
+                      <button type="button" className="platform-table-btn btn-danger" onClick={() => deleteProject(row.name)}>
                         Delete
                       </button>
                     </td>

@@ -9,7 +9,7 @@ const ADMIN_VIEWS = ['overview', 'renewals', 'plan-requests', 'audits', 'subscri
 function MenuIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M5 7h14M5 12h14M5 17h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -17,7 +17,7 @@ function MenuIcon() {
 function MoonIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M15.9 2.6a8.8 8.8 0 1 0 5.5 15.8A9.8 9.8 0 0 1 15.9 2.6Z" fill="currentColor" />
+      <path d="M16.5 4.5a8.5 8.5 0 1 1-10.9 10.9 7 7 0 0 0 10.9-10.9Z" fill="currentColor" />
     </svg>
   );
 }
@@ -25,8 +25,8 @@ function MoonIcon() {
 function RefreshIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M20 6v5h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M20 11a8 8 0 1 1-2.34-5.66L20 6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 4v6h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M20 12a8 8 0 1 0-2.34 5.66L20 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -34,7 +34,8 @@ function RefreshIcon() {
 function UserIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.2 0-7 2.1-7 5v1h14v-1c0-2.9-2.8-5-7-5Z" fill="currentColor" />
+      <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z" fill="currentColor" />
+      <path d="M6 20c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -42,9 +43,9 @@ function UserIcon() {
 function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M14 7l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M19 12H9" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M11 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M9 8l-4 4 4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 12h10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M15 6h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -52,10 +53,10 @@ function LogoutIcon() {
 function AdminDashIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="4" y="4" width="7" height="7" rx="1.5" fill="currentColor" />
-      <rect x="13" y="4" width="7" height="4" rx="1.5" fill="currentColor" opacity="0.72" />
-      <rect x="13" y="10" width="7" height="10" rx="1.5" fill="currentColor" opacity="0.9" />
-      <rect x="4" y="13" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.72" />
+      <rect x="4" y="4" width="6" height="6" rx="1.5" fill="currentColor" />
+      <rect x="14" y="4" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.8" />
+      <rect x="4" y="14" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.7" />
+      <rect x="14" y="14" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.55" />
     </svg>
   );
 }
@@ -63,9 +64,9 @@ function AdminDashIcon() {
 function RoleMgmtIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="9" cy="9" r="3" fill="currentColor" opacity="0.92" />
-      <circle cx="17" cy="10" r="2.6" fill="currentColor" opacity="0.72" />
-      <circle cx="13" cy="17" r="3" fill="currentColor" opacity="0.82" />
+      <path d="M7 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="currentColor" opacity="0.92" />
+      <path d="M7 14c-2.8 0-5 2.2-5 5v1h10v-1c0-2.8-2.2-5-5-5Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="17" cy="16" r="3" fill="currentColor" opacity="0.75" />
     </svg>
   );
 }
@@ -73,8 +74,9 @@ function RoleMgmtIcon() {
 function SubscriptionIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7 4h10v16H7z" fill="none" stroke="currentColor" strokeWidth="2" />
-      <path d="M9 9h6M9 13h6M9 17h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M6 5h12v14H6z" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M9 9h6M9 13h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M9 17h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -112,8 +114,8 @@ function RequestIcon() {
 function AuditIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3a9 9 0 1 0 9 9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M12 7v5l3 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M9 8h6M9 12h6M9 16h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -121,8 +123,9 @@ function AuditIcon() {
 function CompanyIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="3" y="5" width="8" height="14" rx="1.5" fill="currentColor" opacity="0.92" />
-      <rect x="13" y="3" width="8" height="16" rx="1.5" fill="currentColor" opacity="0.72" />
+      <path d="M4 8h16v12H4z" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M7 11h3M7 15h3M14 11h3M14 15h3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M12 3v5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -130,7 +133,7 @@ function CompanyIcon() {
 function DetailIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6 4h12v16H6z" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M6 3h12l3 3v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" strokeWidth="2" />
       <path d="M9 9h6M9 13h6M9 17h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
@@ -569,19 +572,30 @@ export default function PlatformPage() {
         <div class="text-left space-y-4 mt-2">
           <div><label class="form-label">User ID</label><input class="swal2-input form-input" value="${userId}" readonly /></div>
           <div><label class="form-label">New Password</label><input id="swal-reset-pass" type="text" class="swal2-input form-input" value="${autoPassword}" /></div>
+          <div style="font-size: 0.9rem; color: #6e6e6e; margin-top: 0.25rem;">Password must be at least 8 characters.</div>
         </div>
       `,
       showCancelButton: true,
-      confirmButtonText: 'Update Password'
+      confirmButtonText: 'Update Password',
+      preConfirm: () => {
+        const password = String(document.getElementById('swal-reset-pass')?.value || '').trim();
+        if (!password) {
+          Swal.showValidationMessage('Password is required');
+          return false;
+        }
+        if (password.length < 8) {
+          Swal.showValidationMessage('Password must be at least 8 characters');
+          return false;
+        }
+        return password;
+      }
     });
 
-    if (!result.isConfirmed) return;
-
-    const password = document.getElementById('swal-reset-pass')?.value?.trim();
-    if (!password) return;
+    if (!result.isConfirmed || !result.value) return;
 
     try {
-      await platformApi.updatePlatformUser(userId, { operation: 'resetPassword', password });
+      setError('');
+      await platformApi.resetUserPassword(userId, result.value);
       await Swal.fire('Success', 'Password reset successfully.', 'success');
     } catch (err) {
       setError(err?.response?.data?.error || err.message || 'Failed to reset password');
@@ -988,10 +1002,12 @@ export default function PlatformPage() {
                       <tr key={log._id}>
                         <td className="col-wrap">{log.action || '-'}</td>
                         <td className="col-wrap">{log.actorEmail || log.actorName || '-'}</td>
-                        <td className="col-wrap">{log.targetCompanyName || '-'}</td>
+                        <td className="col-wrap">
+                          {log.targetCompanyName || log.details?.companyName || log.details?.company || log.targetCompanyId?.name || (typeof log.targetCompanyId === 'string' ? log.targetCompanyId : '') || 'Unknown Company'}
+                        </td>
                         <td className="col-status"><span className={log.status === 'Blocked' ? 'status-badge status-in-active' : 'status-badge status-active'}>{log.status || 'Done'}</span></td>
                         <td className="col-date">{formatDateTime(log.createdAt)}</td>
-                        <td className="col-wrap"><pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{JSON.stringify(log.details || {}, null, 0)}</pre></td>
+                        <td className="col-wrap"><pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>{JSON.stringify(log.details || {}, null, 0)}</pre></td>
                       </tr>
                     ))}
                   </tbody>

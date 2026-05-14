@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/authContext.jsx';
 import { authApi } from '../services/api.js';
+import kriscelLogoUrl from '../assets/kriscel-logo.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -9,10 +10,13 @@ export default function LoginPage() {
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (isSubmitting) return;
     setError('');
+    setIsSubmitting(true);
     try {
       const normalizedUserId = userId.trim();
       const res = await authApi.login(normalizedUserId, password);
@@ -38,6 +42,8 @@ export default function LoginPage() {
       navigate('/');
     } catch (err) {
       setError(err.message || 'Login failed');
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -45,13 +51,18 @@ export default function LoginPage() {
     <main className="login-page">
       <section className="login-container">
         <aside className="login-branding">
-          <div>
-            <h1 className="brand-title">TaskEasy</h1>
-            <p className="brand-subtitle">Streamline your workflow, amplify your results.</p>
+          <div className="login-brand-logo">
+            <img src={kriscelLogoUrl} alt="KRISCEL TECH" />
           </div>
+          <p className="login-brand-eyebrow">Work operating system</p>
+          <h1 className="brand-title">TaskEasy</h1>
+          <p className="brand-subtitle">Streamline your workflow, amplify your results.</p>
         </aside>
 
         <section className="login-form-panel">
+          <div className="login-mobile-logo">
+            <img src={kriscelLogoUrl} alt="KRISCEL TECH" />
+          </div>
           <h1 className="login-title">Welcome Back!</h1>
           <form onSubmit={onSubmit}>
             <div className="input-block">
@@ -81,13 +92,15 @@ export default function LoginPage() {
               <label htmlFor="password" className="input-label">Password</label>
             </div>
 
-            <button type="submit" className="login-button">LOG IN</button>
+            <button type="submit" className="login-button" disabled={isSubmitting}>
+              {isSubmitting ? 'LOGGING IN...' : 'LOG IN'}
+            </button>
             {error ? <p className="login-error">{error}</p> : null}
           </form>
 
           <div className="login-powered-by">
             <p>Powered by</p>
-            <strong>Kriscel Tech Pvt Ltd</strong>
+            <strong>KRISCEL TECH</strong>
           </div>
         </section>
       </section>

@@ -60,6 +60,15 @@
 
     /* Add this inside your <style> tag */
 
+    /* Custom Tailwind color utilities for bg-primary and bg-primary-dark */
+    .bg-primary { background-color: #6366f1 !important; }
+    .bg-primary-dark { background-color: #4f46e5 !important; }
+    .bg-primary-light { background-color: #a5b4fc !important; }
+    .hover\:bg-primary-dark:hover { background-color: #4f46e5 !important; }
+    .text-primary { color: #6366f1 !important; }
+    .text-primary-dark { color: #4f46e5 !important; }
+    .hover\:bg-primary:hover { background-color: #6366f1 !important; }
+
     .notification-dot {
       height: 10px;
       width: 10px;
@@ -1770,13 +1779,16 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      display: none;
-      transition: opacity 0.3s, transform 0.3s;
+      z-index: 9999;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
       transform: translateY(100px);
     }
 
     #back-to-top-btn.show {
-      display: flex;
+      opacity: 1 !important;
+      visibility: visible !important;
       transform: translateY(0);
     }
 
@@ -2307,7 +2319,7 @@
       <div id="hierarchy-view" class="content-view hidden"></div>
     </main>
 
-    <button id="back-to-top-btn" class="fixed bottom-5 right-5 z-50 hidden h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-transform duration-300 hover:bg-primary-dark">
+    <button id="back-to-top-btn" class="fixed bottom-5 right-5 z-50 h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-all duration-300 hover:bg-primary-dark hover:shadow-xl hover:scale-110">
         <i class="fas fa-arrow-up"></i>
     </button>
     <!-- ... Upar ka HTML code same rahega ... -->
@@ -9863,19 +9875,37 @@ function isDateInPeriod(dateObj, period) {
 // --- NEW HELPER: Robust Date Parser ---
 function parseClientDate(dateStr) {
     if (!dateStr) return null;
-    
-    // Check if it's mostly numbers (e.g. 15-01-2025 or 2025-01-15)
-    // Datedropper returns "d-m-Y" typically
-    if (dateStr.match(/^\d{1,2}-\d{1,2}-\d{4}$/)) {
-        const parts = dateStr.split('-');
-        return new Date(parts[2], parts[1] - 1, parts[0]);
+
+    const cleanDate = String(dateStr).trim();
+    const normalized = cleanDate.replace(/\//g, '-');
+    const parts = normalized.split('-').map((part) => part.trim());
+
+    if (parts.length === 3 && parts.every((part) => /^\d+$/.test(part))) {
+        const [a, b, c] = parts;
+        const numA = Number(a);
+        const numB = Number(b);
+        const numC = Number(c);
+
+        if (a.length === 4) {
+            return new Date(numA, numB - 1, numC);
+        }
+
+        if (c.length === 4) {
+            if (numA > 12 && numB <= 12) {
+                return new Date(numC, numB - 1, numA);
+            }
+            if (numB > 12 && numA <= 12) {
+                return new Date(numC, numA - 1, numB);
+            }
+            if (cleanDate.includes('/')) {
+                return new Date(numC, numA - 1, numB);
+            }
+            return new Date(numC, numB - 1, numA);
+        }
     }
-    
-    // Try Standard Date Parse (Handles "15-Jan-2025")
-    const d = new Date(dateStr);
-    if (!isNaN(d.getTime())) return d;
-    
-    return null;
+
+    const parsed = new Date(cleanDate);
+    return isNaN(parsed.getTime()) ? null : parsed;
 }
     function handleDelegateTaskSubmit(e) {
     e.preventDefault();
@@ -9891,7 +9921,7 @@ function parseClientDate(dateStr) {
     
     submitButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Sending...');
     
-    let fileReadPromises = [], tasks = [], isValid = true;
+    let fileReadPromises = [], tasks = [], isValid = true, validationError = '';
     
     $('#delegation-rows-container .task-row-card').each(function() {
         const row = $(this);
@@ -9902,8 +9932,8 @@ function parseClientDate(dateStr) {
 
         if (!taskDetail || !dateVal || !timeVal) { isValid = false; return false; }
 
-        // --- USE NEW HELPER FUNCTION ---
         const formattedDateTime = getSafeIsoDateTime(dateVal, timeVal);
+        if (!formattedDateTime) { isValid = false; validationError = 'Please enter a valid delegation date and time.'; return false; }
 
         const taskData = { delegatedTo, projectName, taskDetail, targetDate: formattedDateTime, priority, filesData: [] };
         
@@ -9923,7 +9953,7 @@ function parseClientDate(dateStr) {
 
     if (!isValid) {
         submitButton.prop('disabled', false).html(originalButtonHTML);
-        return Swal.fire('Validation Error', 'Please fill all required fields.', 'warning');
+        return Swal.fire('Validation Error', validationError || 'Please fill all required fields.', 'warning');
     }
     
     Promise.all(fileReadPromises).then(() => {
@@ -10012,8 +10042,8 @@ function handleChecklistTaskSubmit(e) {
 
         if (!taskDesc || !dateVal || !timeVal) { validationError = 'Please fill all fields.'; return false; }
 
-        // --- USE NEW HELPER FUNCTION ---
         const formattedDateTime = getSafeIsoDateTime(dateVal, timeVal);
+        if (!formattedDateTime) { validationError = 'Please enter a valid checklist start date and time.'; return false; }
 
         const commonData = {
             projectName,
@@ -10084,6 +10114,7 @@ function handleChecklistTaskSubmit(e) {
     let requests = [];
     let fileReadPromises = [];
     let isValid = true;
+    let validationError = '';
 
     // Loop through each row
     $('#work-request-rows-container .task-row-card').each(function() {
@@ -10097,46 +10128,23 @@ function handleChecklistTaskSubmit(e) {
         // Check if fields are empty
         if (!requestFor || !projectName || !description || !dateVal || !timeVal) {
             isValid = false;
+            validationError = 'Please fill all required fields (Desc, Date, Time).';
             return false; // Break loop
         }
 
-        // --- FIXED DATE LOGIC START ---
-        // 1. स्लैश (/) को डैश (-) में बदलें
-        dateVal = dateVal.trim().replace(/\//g, '-');
-        
-        let formattedDateTime;
-        const parts = dateVal.split('-');
-
-        // अगर फॉर्मेट DD-MM-YYYY है (3 हिस्से हैं)
-        if (parts.length === 3) {
-            // हम इसे YYYY-MM-DD में बदलेंगे जो कंप्यूटर समझता है
-            // parts[0] = Day, parts[1] = Month, parts[2] = Year
-            // ध्यान दें: अगर year पहला है (2026-01-29), तो लॉजिक बदलें
-            
-            let day, month, year;
-            
-            if (parts[0].length === 4) {
-                // अगर तारीख पहले से YYYY-MM-DD है
-                year = parts[0]; month = parts[1]; day = parts[2];
-            } else {
-                // अगर तारीख DD-MM-YYYY है
-                day = parts[0]; month = parts[1]; year = parts[2];
-            }
-
-            // Time जोड़कर फाइनल फॉर्मेट बनाएं: YYYY-MM-DDTHH:mm:00
-            formattedDateTime = `${year}-${month}-${day}T${timeVal}:00`;
-        } else {
-            // अगर फॉर्मेट समझ नहीं आया, तो जैसा है वैसा भेजें (Backend इसे संभालेगा)
-            formattedDateTime = `${dateVal}T${timeVal}:00`;
+        const formattedDateTime = getSafeIsoDateTime(dateVal, timeVal);
+        if (!formattedDateTime) {
+            isValid = false;
+            validationError = 'Please enter a valid work request deadline date and time.';
+            return false;
         }
-        // --- FIXED DATE LOGIC END ---
 
-        const requestData = { 
-            requestFor, 
-            projectName, 
-            description, 
-            deadline: formattedDateTime, 
-            filesData: [] 
+        const requestData = {
+            requestFor,
+            projectName,
+            description,
+            deadline: formattedDateTime,
+            filesData: []
         };
 
         // Handle Files
@@ -10160,7 +10168,7 @@ function handleChecklistTaskSubmit(e) {
 
     if (!isValid) {
         submitButton.prop('disabled', false).html(originalButtonHTML);
-        return Swal.fire('Validation Error', 'Please fill all required fields (Desc, Date, Time).', 'warning');
+        return Swal.fire('Validation Error', validationError || 'Please fill all required fields (Desc, Date, Time).', 'warning');
     }
 
     Promise.all(fileReadPromises).then(() => {
@@ -11115,7 +11123,7 @@ function loadReports() {
             }
             hierarchy.forEach(group => {
                 const empBadges = group.employees.map(emp => `<span class="bg-gray-200 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">${emp}</span>`).join('');
-                container.append(`<div class="animated-card content-wrapper"><div class="p-4 bg-bg-light border-b flex justify-between items-center"><h3 class="text-lg font-bold text-primary"><i class="fas fa-user-shield mr-2"></i>${group.admin}</h3><div><button class="bg-blue-500 text-white px-2 py-1 rounded text-xs" onclick='openHierarchyModal(${JSON.stringify(group)})'>Edit</button><button class="bg-red-500 text-white px-2 py-1 rounded ml-1 text-xs" onclick='deleteHierarchyConfirmation("${group.admin}")'>Delete</button></div></div><div class="p-4"><h4 class="font-semibold mb-2 text-sm">Assigned Employees:</h4><div class="flex flex-wrap gap-2">${empBadges || 'None'}</div></div></div>`);
+                container.append(`<div class="animated-card content-wrapper"><div class="p-4 bg-bg-light border-b flex justify-between items-center"><h3 class="text-lg font-bold text-primary"><i class="fas fa-user-shield mr-2"></i>${group.admin}</h3><div><button class="bg-blue-500 text-white px-2 py-1 rounded text-xs" onclick='openHierarchyModal(${JSON.stringify(group)})'>Edit</button><button class="bg-red-500 text-white px-2 py-1 rounded ml-1 text-xs" onclick='deleteHierarchyConfirmation("${group.admin}")'>Delete</button></div></div><div class="p-4"><h4 class="font-semibold mb-2 text-sm">Group Members:</h4><div class="flex flex-wrap gap-2">${empBadges || 'None'}</div></div></div>`);
             });
         }
 
@@ -11126,7 +11134,7 @@ function loadReports() {
             const empOpts = allEmployees.map(e => `<option value="${e}">${e}</option>`).join('');
             Swal.fire({
                 title: isEdit ? 'Edit Group' : 'New Group',
-                html: `<div class="space-y-4 text-left"><div><label class="form-label">Admin</label><select id="swal-admin" class="swal2-input" ${isEdit&&'disabled'}>${adminOpts}</select></div><div><label class="form-label">Employees</label><select id="swal-employees" class="swal2-input" multiple="multiple">${empOpts}</select></div></div>`,
+                html: `<div class="space-y-4 text-left"><div><label class="form-label">Admin</label><select id="swal-admin" class="swal2-input" ${isEdit&&'disabled'}>${adminOpts}</select></div><div><label class="form-label">Members</label><select id="swal-employees" class="swal2-input" multiple="multiple">${empOpts}</select></div></div>`,
                 didOpen: () => {
                     $('#swal-employees').select2({ placeholder: "Select employees...", width: '100%', dropdownParent: $('.swal2-popup') });
                     if(isEdit) $('#swal-employees').val(group.employees).trigger('change');
@@ -11709,39 +11717,22 @@ const googleRun = (funcName, ...args) => {
 // --- Index.html ---
 
 function getSafeIsoDateTime(dateStr, timeStr) {
-    try {
-        if (!dateStr) return new Date().toISOString(); 
-        
-        // Remove slash, use dash
-        const cleanDate = dateStr.trim().replace(/\//g, '-');
-        const parts = cleanDate.split('-');
-        
-        let y, m, d;
-        
-        // Datedropper usually gives "d-m-Y" (e.g., 13-02-2026)
-        if (parts.length === 3) {
-            // Case 1: YYYY-MM-DD
-            if (parts[0].length === 4) { 
-                 y = parts[0]; m = parts[1]; d = parts[2]; 
-            } 
-            // Case 2: DD-MM-YYYY (Most likely scenario for India/Datedropper)
-            else { 
-                 d = parts[0]; m = parts[1]; y = parts[2]; 
-            }
-            
-            // Ensure padding for ISO Format
-            m = String(m).padStart(2, '0');
-            d = String(d).padStart(2, '0');
-            
-            // Return ISO string which creates a valid Date object in backend
-            return `${y}-${m}-${d}T${timeStr}:00`;
-        }
-        
-        return `${cleanDate}T${timeStr}:00`;
-    } catch (e) {
-        console.error("Date Parse Error", e);
-        return new Date().toISOString();
-    }
+    const parsedDate = parseClientDate(dateStr);
+    if (!parsedDate) return '';
+
+    const year = parsedDate.getFullYear();
+    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(parsedDate.getDate()).padStart(2, '0');
+
+    const rawTime = String(timeStr || '00:00').trim();
+    const timeParts = rawTime.split(':').map((p) => String(Number(p)).padStart(2, '0'));
+    if (timeParts.length < 2) return '';
+
+    const formattedTime = `${timeParts[0]}:${timeParts[1]}`;
+    const isoString = `${year}-${month}-${day}T${formattedTime}:00`;
+    const parsed = new Date(isoString);
+
+    return Number.isNaN(parsed.getTime()) ? '' : isoString;
 }
 // --- ADVANCED EXPORT FUNCTIONS (EXCEL & PDF) ---
 

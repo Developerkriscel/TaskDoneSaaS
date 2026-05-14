@@ -69,6 +69,8 @@ CORS_ALLOWED_ORIGINS=https://yourdomain.com
 CORS_ALLOW_ANY_ORIGIN=false
 JWT_EXPIRES_IN=1d
 BOOTSTRAP_INCLUDE_SUPERADMIN=false
+BOOTSTRAP_APPADMIN_EMAIL=admin@yourdomain.com
+BOOTSTRAP_APPADMIN_PASSWORD=use-a-long-random-password
 ```
 
 ### Step 5: Install & Build
@@ -216,8 +218,8 @@ pm2 restart taskdone-backend
 
 | Role | User ID | Password |
 |------|---------|----------|
-| App Admin | `appadmin` | `AppAdmin@123` |
-| Super Admin | `superadmin` | `SuperAdmin@123` |
+| App Admin | `BOOTSTRAP_APPADMIN_USERID` or `appadmin` | value of `BOOTSTRAP_APPADMIN_PASSWORD` |
+| Super Admin | `BOOTSTRAP_SUPERADMIN_USERID` or `superadmin` | value of `BOOTSTRAP_SUPERADMIN_PASSWORD` when `BOOTSTRAP_INCLUDE_SUPERADMIN=true` |
 
 ---
 

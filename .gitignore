@@ -10,6 +10,7 @@ frontend/node_modules/
 # Build Outputs
 **/dist/
 frontend/dist/
+backend/public/
 
 # Environment Files (NEVER commit these)
 .env

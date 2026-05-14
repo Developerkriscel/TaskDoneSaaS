@@ -158,6 +158,8 @@ COOKIE_SAMESITE=none
 CORS_ALLOW_ANY_ORIGIN=false
 CORS_ALLOWED_ORIGINS=https://yourdomain.com
 BOOTSTRAP_INCLUDE_SUPERADMIN=false
+BOOTSTRAP_APPADMIN_EMAIL=admin@yourdomain.com
+BOOTSTRAP_APPADMIN_PASSWORD=use-a-long-random-password
 ```
 
 ### 6. Build Frontend

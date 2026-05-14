@@ -4,6 +4,7 @@ import { PlanRequest } from '../models/PlanRequest.js';
 import { PlatformAudit } from '../models/PlatformAudit.js';
 import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
+import { Project } from '../models/Project.js';
 import { AppSetting } from '../models/AppSetting.js';
 import { ApiError } from '../utils/ApiError.js';
 import { recordPlatformAudit } from './platformAuditService.js';
@@ -280,6 +281,12 @@ export async function createCompany(payload = {}, actor = null) {
     status: 'Active',
     number: contactPhone
   });
+
+  await Project.updateOne(
+    { companyId: company._id, name: 'General' },
+    { $setOnInsert: { status: 'Active', createdBy: superAdmin._id } },
+    { upsert: true }
+  );
 
   await Company.updateOne({ _id: company._id }, { contactPerson: superAdminName });
 
@@ -607,8 +614,18 @@ export async function getPlatformAuditLogs({ search = '', limit = 100 } = {}) {
         ]
       }
     : {};
-  const logs = await PlatformAudit.find(filter).sort({ createdAt: -1 }).limit(Math.min(Number(limit) || 100, 250)).lean();
-  return { success: true, logs };
+  const logs = await PlatformAudit.find(filter)
+    .sort({ createdAt: -1 })
+    .limit(Math.min(Number(limit) || 100, 250))
+    .populate({ path: 'targetCompanyId', select: 'name' })
+    .lean();
+
+  const enrichedLogs = logs.map((log) => ({
+    ...log,
+    targetCompanyName: log.targetCompanyName || log.targetCompanyId?.name || log.details?.companyName || log.details?.company || ''
+  }));
+
+  return { success: true, logs: enrichedLogs };
 }
 
 export async function listSubscriptions(search = '') {

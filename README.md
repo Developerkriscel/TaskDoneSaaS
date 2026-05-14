@@ -70,6 +70,8 @@ PORT=8080
 MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/taskdone
 JWT_SECRET=your-long-random-secret
 CORS_ALLOWED_ORIGINS=https://yourdomain.com
+BOOTSTRAP_APPADMIN_EMAIL=admin@yourdomain.com
+BOOTSTRAP_APPADMIN_PASSWORD=use-a-long-random-password
 ```
 
 ## Deployment
@@ -91,11 +93,11 @@ cd backend
 node src/scripts/bootstrapAdmins.js
 ```
 
-### Default Credentials
+### Bootstrap Credentials
 
 | Role | User ID | Password |
 |------|---------|----------|
-| App Admin | `appadmin` | `AppAdmin@123` |
+| App Admin | `BOOTSTRAP_APPADMIN_USERID` or `appadmin` | value of `BOOTSTRAP_APPADMIN_PASSWORD` |
 
 ## Project Structure
 

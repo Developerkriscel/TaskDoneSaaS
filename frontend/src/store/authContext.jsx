@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { authApi, setAuthToken } from '../services/api.js';
+import { authApi, hasAuthToken, setAuthToken } from '../services/api.js';
 
 const AuthContext = createContext(null);
 
@@ -9,6 +9,14 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let mounted = true;
+
+    if (!hasAuthToken()) {
+      setInitializing(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
     authApi
       .me()
       .then((payload) => {
@@ -25,6 +33,7 @@ export function AuthProvider({ children }) {
       })
       .catch(() => {
         if (!mounted) return;
+        setAuthToken('');
         setUser(null);
       })
       .finally(() => {

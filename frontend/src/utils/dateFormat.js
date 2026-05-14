@@ -39,13 +39,7 @@ export function formatDate(value, fallback = '-') {
 export function formatTime(value, fallback = '-') {
   const date = toDate(value);
   if (!date) return fallback;
-
-  let hours = date.getHours();
-  const minutes = two(date.getMinutes());
-  const suffix = hours >= 12 ? 'pm' : 'am';
-  hours %= 12;
-  if (hours === 0) hours = 12;
-  return `${two(hours)}:${minutes} ${suffix}`;
+  return `${two(date.getHours())}:${two(date.getMinutes())}`;
 }
 
 export function formatDateTime(value, fallback = '-') {

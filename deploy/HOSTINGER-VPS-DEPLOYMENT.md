@@ -186,6 +186,8 @@ JWT_EXPIRES_IN=1d
 
 # Bootstrap settings
 BOOTSTRAP_INCLUDE_SUPERADMIN=false
+BOOTSTRAP_APPADMIN_EMAIL=admin@taskeasyapp.in
+BOOTSTRAP_APPADMIN_PASSWORD=use-a-long-random-password
 ```
 
 **Save and exit:** Press `Ctrl+X`, then `Y`, then `Enter`
@@ -321,8 +323,9 @@ cd /var/www/taskdone/backend
 node src/scripts/bootstrapAdmins.js
 ```
 
-**Default credentials:**
-- **App Admin**: userId=`appadmin` / password=`AppAdmin@123`
+**Bootstrap credentials:**
+- **App Admin**: userId=`appadmin` unless `BOOTSTRAP_APPADMIN_USERID` is set
+- **Password**: value of `BOOTSTRAP_APPADMIN_PASSWORD`
 - **Login URL**: https://taskeasyapp.in/platform-login
 
 ---

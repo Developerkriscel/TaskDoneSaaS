@@ -33,11 +33,7 @@ function buildCorsOptions() {
         cb(null, true);
         return;
       }
-      if (allowlist.includes(origin)) {
-        cb(null, true);
-        return;
-      }
-      if (allowlist.length === 0 && defaultAllowedPatterns.some((pattern) => pattern.test(origin))) {
+      if (allowlist.includes(origin) || defaultAllowedPatterns.some((pattern) => pattern.test(origin))) {
         cb(null, true);
         return;
       }
