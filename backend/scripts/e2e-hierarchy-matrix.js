@@ -19,6 +19,18 @@ function plusHoursIso(hours) {
   return d.toISOString();
 }
 
+function todayIstIsoAt(hour) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(new Date()).map((part) => [part.type, part.value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${String(hour).padStart(2, '0')}:00:00`;
+}
+
 function push(results, test, ok, detail) {
   results.push({ test, ok: Boolean(ok), detail: String(detail || '') });
 }
@@ -150,7 +162,7 @@ async function run() {
         projectName,
         taskDescription: cTopLow,
         taskFrequency: 'Daily',
-        startDate: plusHoursIso(2),
+        startDate: todayIstIsoAt(10),
         dayOrDate: '',
         attachmentRequired: false
       }
@@ -168,13 +180,25 @@ async function run() {
         projectName,
         taskDescription: cTeamLow,
         taskFrequency: 'Weekly',
-        startDate: plusHoursIso(3),
+        startDate: todayIstIsoAt(11),
         dayOrDate: '',
         attachmentRequired: false
       }
     ]
   });
   push(results, 'create-checklist-admin-to-emp2', createChkAdmin.ok && createChkAdmin.data?.success, JSON.stringify(createChkAdmin.data));
+
+  const generateChecklists = await api('/rpc/secure', {
+    method: 'POST',
+    token: superAdmin.token,
+    body: { method: 'createTasksDaily', params: [] }
+  });
+  push(
+    results,
+    'generate-checklists-midnight',
+    generateChecklists.ok && typeof generateChecklists.data === 'number' && generateChecklists.data >= 2,
+    JSON.stringify(generateChecklists.data)
+  );
 
   // Work Request top->low (Admin -> Emp1)
   const createWrTopLow = await api('/v1/tasks/work-requests', {

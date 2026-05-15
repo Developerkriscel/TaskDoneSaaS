@@ -17,6 +17,69 @@ function clean(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+const IST_TIMEZONE = 'Asia/Kolkata';
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const istFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: IST_TIMEZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23'
+});
+
+function getIstParts(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const parts = Object.fromEntries(istFormatter.formatToParts(date).map((part) => [part.type, part.value]));
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour || 0),
+    minute: Number(parts.minute || 0),
+    second: Number(parts.second || 0)
+  };
+}
+
+function makeIstDate(year, month, day, hour = 0, minute = 0, second = 0) {
+  return new Date(Date.UTC(year, month - 1, day, hour, minute, second) - IST_OFFSET_MS);
+}
+
+function parseDateInIst(value) {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+
+  const raw = String(value).trim();
+  const hasExplicitZone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(raw);
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+  const isLocalDateTime = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(raw);
+  const normalized =
+    !hasExplicitZone && (isDateOnly || isLocalDateTime)
+      ? `${isDateOnly ? `${raw}T00:00:00` : raw}+05:30`
+      : raw;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function startOfIstDay(value = new Date()) {
+  const parts = getIstParts(value);
+  return makeIstDate(parts.year, parts.month, parts.day);
+}
+
+function getIstDayKey(value = new Date()) {
+  const parts = getIstParts(value);
+  return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+}
+
+function applyIstTimeToDay(dayValue, timeSourceValue) {
+  const day = getIstParts(dayValue);
+  const time = getIstParts(timeSourceValue);
+  return makeIstDate(day.year, day.month, day.day, time.hour, time.minute, time.second);
+}
+
 function getContextUser(context = {}) {
   return context?.user || null;
 }
@@ -542,8 +605,6 @@ async function getChecklistTasksForEmployee(userName, filters = {}, context = {}
   const user = await getUserByName(userName, context);
   if (!user) return [];
 
-  await ensureChecklistTasksForMasters([user._id], context);
-
   const rows = await ChecklistTask.find({ user: user._id })
     .populate('project', 'name')
     .populate('delegatedByUser', 'name')
@@ -981,7 +1042,6 @@ async function saveChecklistTask(taskData, userName, context = {}) {
   const employeeNames = [...new Set(normalizedRows.map((r) => r.employee).filter(Boolean))];
   const targets = await User.find({ ...companyScope, name: { $in: employeeNames } }).select('_id name').lean();
   const targetMap = new Map(targets.map((u) => [u.name, u._id]));
-  const targetById = new Map(targets.map((u) => [String(u._id), u]));
 
   const projectNames = [...new Set(normalizedRows.map((r) => r.project).filter(Boolean))];
   const projects = await Project.find({ ...companyScope, name: { $in: projectNames } }).select('_id name').lean();
@@ -989,8 +1049,7 @@ async function saveChecklistTask(taskData, userName, context = {}) {
 
   const invalidDateRow = normalizedRows.find((row) => {
     if (!row.startDate) return false;
-    const parsedDate = new Date(row.startDate);
-    return Number.isNaN(parsedDate.getTime());
+    return !parseDateInIst(row.startDate);
   });
   if (invalidDateRow) {
     return `Invalid checklist startDate: ${String(invalidDateRow.startDate)}`;
@@ -1007,8 +1066,6 @@ async function saveChecklistTask(taskData, userName, context = {}) {
 
   const last = await ChecklistWorkMaster.findOne().sort({ legacyTaskId: -1 }).lean();
   let nextId = Number(last?.legacyTaskId || 0) + 1;
-  const lastTask = await ChecklistTask.findOne().sort({ legacyTaskId: -1 }).lean();
-  let nextTaskId = Number(lastTask?.legacyTaskId || 0) + 1;
 
   const inserts = normalizedRows
     .map((row) => {
@@ -1023,7 +1080,7 @@ async function saveChecklistTask(taskData, userName, context = {}) {
         taskDescription: description,
         taskFrequency: normalizeFrequency(row.frequency),
         project: projectMap.get(row.project) || null,
-        startDate: row.startDate ? new Date(row.startDate) : new Date(),
+        startDate: parseDateInIst(row.startDate) || new Date(),
         dayDate: row.dayDate || '',
         attachmentRequired: row.attReq ? 'Yes' : ''
       };
@@ -1033,120 +1090,37 @@ async function saveChecklistTask(taskData, userName, context = {}) {
   if (!inserts.length) return 'No valid checklist tasks found.';
   await ChecklistWorkMaster.insertMany(inserts);
 
-  const immediateTasks = inserts.map((row) => ({
-    legacyTaskId: nextTaskId++,
-    user: row.delegatedToUser,
-    delegatedByUser: row.delegatedByUser,
-    description: row.taskDescription,
-    frequency: row.taskFrequency,
-    project: row.project,
-    planDate: row.startDate || new Date(),
-    attachmentRequired: row.attachmentRequired || '',
-    sourceType: 'Manual',
-    approvalStatus: 'Pending'
-  }));
-
-  if (immediateTasks.length > 0) {
-    await ChecklistTask.insertMany(immediateTasks);
-    await Promise.allSettled(
-      immediateTasks.map((row) => {
-        const target = targetById.get(String(row.user));
-        const projectName = projects.find((p) => String(p._id) === String(row.project))?.name || 'General';
-        return sendWorkflowMailSafe({
-          toUser: target,
-          category: 'Checklist',
-          action: 'Checklist Task Assigned',
-          title: 'New Checklist Task Assigned',
-          body: `A new checklist task has been created by ${creator.name}. Please complete it within schedule.`,
-          details: {
-            Project: projectName,
-            Frequency: row.frequency || 'Daily',
-            PlanDate: row.planDate ? new Date(row.planDate).toISOString().slice(0, 10) : 'Not Set',
-            Task: row.description
-          }
-        });
-      })
-    );
-  }
-
   return 'success';
 }
 
-async function ensureChecklistTasksForMasters(userIds = [], context = {}) {
-  const targetIds = [...new Set((userIds || []).map((id) => String(id || '')).filter(Boolean))];
-  if (!targetIds.length) return 0;
-
-  const masters = await ChecklistWorkMaster.find({
-    isActive: true,
-    delegatedToUser: { $in: targetIds }
-  }).lean();
-
-  if (!masters.length) return 0;
-
-  let lastTask = await ChecklistTask.findOne().sort({ legacyTaskId: -1 }).lean();
-  let nextTaskId = Number(lastTask?.legacyTaskId || 0) + 1;
-  const inserts = [];
-
-  for (const master of masters) {
-    const planDate = master.startDate || new Date();
-    const exists = await ChecklistTask.exists({
-      user: master.delegatedToUser,
-      description: master.taskDescription,
-      project: master.project || null,
-      planDate
-    });
-
-    if (exists) continue;
-
-    inserts.push({
-      legacyTaskId: nextTaskId++,
-      user: master.delegatedToUser,
-      delegatedByUser: master.delegatedByUser,
-      description: master.taskDescription,
-      frequency: master.taskFrequency,
-      project: master.project || null,
-      planDate,
-      attachmentRequired: master.attachmentRequired || '',
-      sourceType: 'Manual',
-      approvalStatus: 'Pending'
-    });
-  }
-
-  if (!inserts.length) return 0;
-  await ChecklistTask.insertMany(inserts);
-  return inserts.length;
-}
-
 function isTaskDueToday(startDate, frequency, today = new Date()) {
-  const base = new Date(startDate);
-  const now = new Date(today);
-  base.setHours(0, 0, 0, 0);
-  now.setHours(0, 0, 0, 0);
+  const base = startOfIstDay(startDate);
+  const now = startOfIstDay(today);
 
   if (now < base) return false;
 
-  const diffDays = Math.floor((now - base) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.floor((now - base) / DAY_MS);
   const freq = clean(frequency);
+  const baseParts = getIstParts(base);
+  const nowParts = getIstParts(now);
 
   if (freq === 'daily') return true;
   if (freq === 'weekly') return diffDays % 7 === 0;
   if (freq === 'fortnightly') return diffDays % 15 === 0;
-  if (freq === 'monthly') return now.getDate() === base.getDate();
+  if (freq === 'monthly') return nowParts.day === baseParts.day;
   if (freq === 'quarterly') {
-    const monthDiff = (now.getFullYear() - base.getFullYear()) * 12 + (now.getMonth() - base.getMonth());
-    return monthDiff >= 0 && monthDiff % 3 === 0 && now.getDate() === base.getDate();
+    const monthDiff = (nowParts.year - baseParts.year) * 12 + (nowParts.month - baseParts.month);
+    return monthDiff >= 0 && monthDiff % 3 === 0 && nowParts.day === baseParts.day;
   }
   if (freq === 'yearly') {
-    return now.getMonth() === base.getMonth() && now.getDate() === base.getDate();
+    return nowParts.month === baseParts.month && nowParts.day === baseParts.day;
   }
   return false;
 }
 
 async function getExistingTasks(today = new Date()) {
-  const start = new Date(today);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+  const start = startOfIstDay(today);
+  const end = new Date(start.getTime() + DAY_MS);
 
   const rows = await ChecklistTask.find({ planDate: { $gte: start, $lt: end } })
     .populate('user project', 'name')
@@ -1154,7 +1128,7 @@ async function getExistingTasks(today = new Date()) {
 
   const set = new Set();
   for (const row of rows) {
-    const key = `${row.user?.name || ''}_${row.description}_${row.project?.name || ''}_${start.toDateString()}`;
+    const key = `${row.user?.name || ''}_${row.description}_${row.project?.name || ''}_${getIstDayKey(row.planDate || start)}`;
     set.add(key);
   }
   return set;
@@ -1166,15 +1140,16 @@ async function addTasksToSheet(tasks) {
 }
 
 async function createTasksDaily() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = startOfIstDay(new Date());
+  const todayKey = getIstDayKey(today);
 
   const existing = await getExistingTasks(today);
   const masters = await ChecklistWorkMaster.find({ isActive: true })
-    .populate('delegatedByUser delegatedToUser project', 'name')
+    .populate('delegatedByUser delegatedToUser project', 'name email companyId')
     .lean();
 
   const inserts = [];
+  const mailJobs = [];
   const last = await ChecklistTask.findOne().sort({ legacyTaskId: -1 }).lean();
   let nextId = Number(last?.legacyTaskId || 0) + 1;
 
@@ -1182,8 +1157,10 @@ async function createTasksDaily() {
     if (!row.delegatedToUser || !row.taskDescription || !row.taskFrequency || !row.startDate) continue;
     if (!isTaskDueToday(row.startDate, row.taskFrequency, today)) continue;
 
-    const taskKey = `${row.delegatedToUser.name}_${row.taskDescription}_${row.project?.name || ''}_${today.toDateString()}`;
+    const taskKey = `${row.delegatedToUser.name}_${row.taskDescription}_${row.project?.name || ''}_${todayKey}`;
     if (existing.has(taskKey)) continue;
+
+    const planDate = applyIstTimeToDay(today, row.startDate);
 
     inserts.push({
       legacyTaskId: nextId++,
@@ -1192,14 +1169,31 @@ async function createTasksDaily() {
       description: row.taskDescription,
       frequency: row.taskFrequency,
       project: row.project?._id || null,
-      planDate: today,
+      planDate,
       attachmentRequired: row.attachmentRequired || '',
       sourceType: 'Generated',
       approvalStatus: 'Pending'
     });
+
+    mailJobs.push({
+      toUser: row.delegatedToUser,
+      category: 'Checklist',
+      action: 'Checklist Task Assigned',
+      title: 'New Checklist Task Assigned',
+      body: `${row.delegatedByUser?.name || 'System'} assigned a checklist task for today. Please complete it within schedule.`,
+      details: {
+        Project: row.project?.name || 'General',
+        Frequency: row.taskFrequency || 'Daily',
+        PlanDate: planDate ? new Date(planDate).toISOString().slice(0, 10) : 'Not Set',
+        Task: row.taskDescription
+      }
+    });
   }
 
   await addTasksToSheet(inserts);
+  if (mailJobs.length > 0) {
+    await Promise.allSettled(mailJobs.map((job) => sendWorkflowMailSafe(job)));
+  }
   return inserts.length;
 }
 

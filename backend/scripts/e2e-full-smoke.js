@@ -17,6 +17,18 @@ function isoPlusHours(hours) {
   return d.toISOString();
 }
 
+function todayIstIsoAt(hour) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(new Date()).map((part) => [part.type, part.value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${String(hour).padStart(2, '0')}:00:00`;
+}
+
 function pass(results, test, detail) {
   results.push({ test, ok: true, detail });
 }
@@ -110,7 +122,7 @@ async function run() {
           projectName,
           taskDescription: chkDesc,
           taskFrequency: 'Daily',
-          startDate: isoPlusHours(1),
+          startDate: todayIstIsoAt(10),
           dayOrDate: '',
           attachmentRequired: false
         }
@@ -118,6 +130,17 @@ async function run() {
     });
     if (!create.ok || !create.data?.success) fail(results, 'create-checklist', JSON.stringify(create.data));
     else pass(results, 'create-checklist', create.data.message || 'success');
+
+    const generate = await req('/rpc/secure', {
+      method: 'POST',
+      token: admin.token,
+      body: { method: 'createTasksDaily', params: [] }
+    });
+    if (!generate.ok || typeof generate.data !== 'number' || generate.data < 1) {
+      fail(results, 'generate-checklist-midnight', JSON.stringify(generate.data));
+    } else {
+      pass(results, 'generate-checklist-midnight', `created=${generate.data}`);
+    }
   }
 
   // Admin: create work request for emp1
