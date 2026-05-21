@@ -151,44 +151,44 @@ export default function LoginPage() {
                   {activeModal === 'terms' && (
                     <>
                       <h2>Terms & Conditions</h2>
-                      <div className="login-modal-body">
+                      <div className="login-modal-body" style={{ maxHeight: '500px', overflowY: 'auto', paddingRight: '10px' }}>
                         <p><strong>Effective Date:</strong> May 2025</p>
                         <p>These Terms & Conditions ("Terms") constitute a legally binding agreement between you ("Client") and Kriscel Tech Pvt. Ltd. ("Company"). By accessing or using our website or services, you agree to be bound by these Terms.</p>
-
+                        
                         <h3>1. Services</h3>
                         <p><strong>1.1 Services Provided:</strong> Kriscel Tech Pvt. Ltd. provides Business Development, Digital Marketing, Web & App Development, Brand Management, and Performance Marketing services.</p>
                         <p><strong>1.2 Service Scope:</strong> The specific services, deliverables, timelines, and fees for each project will be defined in a separate Service Agreement or Statement of Work (SOW).</p>
-
+                        
                         <h3>2. Payment Terms</h3>
                         <p><strong>2.1 Invoicing:</strong> Invoices will be issued within the first 5 days of each month. Payment is due within 15 days of the invoice date.</p>
                         <p><strong>2.2 Late Payment:</strong> A monthly interest of 2% will be charged on payments outstanding beyond 15 days. Services may be suspended if payment remains outstanding for more than 30 days and terminated if unpaid for more than 60 days.</p>
-
+                        
                         <h3>3. Intellectual Property</h3>
                         <p><strong>3.1 Client's IP:</strong> Ownership of the Client's existing trademarks and brand assets remains with the Client.</p>
                         <p><strong>3.2 Developed Work:</strong> Ownership of final deliverables will be transferred to the Client only upon receipt of full payment.</p>
-
+                        
                         <h3>4. Termination</h3>
                         <p><strong>4.1 By Client:</strong> The Client may terminate by providing 30 days' written notice.</p>
                         <p><strong>4.2 By Company:</strong> The Company may terminate for payment default, material breach, or fraudulent activities.</p>
-
+                        
                         <h3>5. Governing Law</h3>
                         <p>These Terms are governed by the laws of India. The courts of Delhi shall have exclusive jurisdiction over any disputes.</p>
-
-                        <p><strong>For full terms, contact:</strong> <a href="mailto:legal@kriscel.com">legal@kriscel.com</a></p>
+                        
+                        <p><strong>For full terms, contact:</strong> legal@kriscel.com</p>
                       </div>
                     </>
                   )}
                   {activeModal === 'privacy' && (
                     <>
                       <h2>Privacy Policy</h2>
-                      <div className="login-modal-body">
+                      <div className="login-modal-body" style={{ maxHeight: '500px', overflowY: 'auto', paddingRight: '10px' }}>
                         <p><strong>Effective Date:</strong> May 2025</p>
                         <p>Kriscel Tech Pvt. Ltd. ("Company") is committed to protecting your personal information. This Privacy Policy explains how we collect, use, disclose, and protect your data when you visit our website or use our services.</p>
-
+                        
                         <h3>1. Information We Collect</h3>
                         <p><strong>1.1 Personal Information:</strong> Full name, email address, phone number, company name, billing details, and business requirements.</p>
                         <p><strong>1.2 Automatically Collected Information:</strong> IP address, browser type, cookies, log files, and analytics data through Google Analytics.</p>
-
+                        
                         <h3>2. How We Use Your Information</h3>
                         <ul>
                           <li>Providing and managing services</li>
@@ -198,10 +198,10 @@ export default function LoginPage() {
                           <li>Fraud prevention and security monitoring</li>
                           <li>Complying with legal obligations</li>
                         </ul>
-
+                        
                         <h3>3. Data Security</h3>
                         <p>We implement industry-standard security measures including SSL/TLS encryption, secure servers, firewalls, regular security audits, and employee training on data privacy.</p>
-
+                        
                         <h3>4. Your Rights</h3>
                         <ul>
                           <li>Access to your personal information</li>
@@ -210,31 +210,31 @@ export default function LoginPage() {
                           <li>Data portability</li>
                           <li>Marketing opt-out</li>
                         </ul>
-
+                        
                         <h3>5. Data Retention</h3>
                         <p>We retain your information while your account is active and for 3 years after account closure for legal compliance purposes.</p>
-
-                        <p><strong>To exercise your rights, contact:</strong> <a href="mailto:legal@kriscel.com">legal@kriscel.com</a></p>
+                        
+                        <p><strong>To exercise your rights, contact:</strong> legal@kriscel.com</p>
                       </div>
                     </>
                   )}
                   {activeModal === 'support' && (
                     <>
                       <h2>Support</h2>
-                      <div className="login-modal-body">
-                        <p>Need help? We're here to assist you.</p>
-
+                      <div className="login-modal-body" style={{ maxHeight: '500px', overflowY: 'auto', paddingRight: '10px' }}>
+                        <p>Need help? We're here to assist you!</p>
+                        
                         <h3>Contact Information</h3>
                         <p><strong>Company:</strong> Kriscel Tech Pvt. Ltd.</p>
-                        <p><strong>Website:</strong> <a href="https://www.kriscel.com" target="_blank" rel="noreferrer">www.kriscel.com</a></p>
-                        <p><strong>Email:</strong> <a href="mailto:legal@kriscel.com">legal@kriscel.com</a></p>
+                        <p><strong>Website:</strong> www.kriscel.com</p>
+                        <p><strong>Email:</strong> legal@kriscel.com</p>
                         <p><strong>Response Time:</strong> Within 7 business days</p>
-
+                        
                         <h3>Support for Legal Inquiries</h3>
-                        <p>For questions regarding our Privacy Policy or Terms & Conditions, please contact our legal team at <a href="mailto:legal@kriscel.com">legal@kriscel.com</a>.</p>
-
+                        <p>For questions regarding our Privacy Policy or Terms & Conditions, please contact our legal team at legal@kriscel.com.</p>
+                        
                         <h3>General Support</h3>
-                        <p>For technical support and general inquiries, visit our website at <a href="https://www.kriscel.com" target="_blank" rel="noreferrer">www.kriscel.com</a> or email us directly.</p>
+                        <p>For technical support and general inquiries, visit our website at www.kriscel.com or email us directly.</p>
                       </div>
                     </>
                   )}

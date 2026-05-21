@@ -74,8 +74,14 @@ import {
   updateCompanyFmsConfig,
   updateCompanyStatus,
   updateCompanySubscription,
-  upsertCompanyRole
+  upsertCompanyRole,
+  updateCompanyStorageLimits
 } from '../controllers/platformController.js';
+import {
+  serveAttachment,
+  removeAttachment,
+  getAttachmentStorageInfo
+} from '../controllers/attachmentController.js';
 import {
   deleteUser as deleteUserAdmin,
   hierarchyGet as hierarchyGetAdmin,
@@ -199,6 +205,7 @@ router.get('/platform/companies/:companyId/subscription', roleRequired('App Admi
 router.patch('/platform/companies/:companyId/status', roleRequired('App Admin'), updateCompanyStatus);
 router.patch('/platform/companies/:companyId/subscription', roleRequired('App Admin'), updateCompanySubscription);
 router.patch('/platform/companies/:companyId/fms', roleRequired('App Admin'), updateCompanyFmsConfig);
+router.patch('/platform/companies/:companyId/storage-limits', roleRequired('App Admin'), updateCompanyStorageLimits);
 router.get('/platform/users/:userId/credentials', roleRequired('App Admin'), platformUserCredentials);
 router.patch('/platform/users/:userId', roleRequired('App Admin'), platformUserUpdate);
 router.post('/platform/users/:userId/reset-password', roleRequired('App Admin'), resetUserPasswordGlobal);
@@ -207,6 +214,11 @@ router.patch('/platform/users/:userId/toggle-status', roleRequired('App Admin'),
 router.get('/platform/companies/:companyId/notification-settings', roleRequired('App Admin'), platformNotificationSettings);
 router.patch('/platform/companies/:companyId/notification-settings', roleRequired('App Admin'), platformNotificationSettingsUpdate);
 router.post('/platform/companies/:companyId/notification-settings/test-email', roleRequired('App Admin'), platformNotificationTestEmail);
+
+// Attachment routes
+router.get('/attachments/:attachmentId', serveAttachment);
+router.delete('/attachments/:attachmentId', roleRequired('Admin', 'Super Admin'), removeAttachment);
+router.get('/companies/:companyId/storage-usage', getAttachmentStorageInfo);
 
 // ── AI Chat Proxy (Mistral) — ALL authenticated users ──
 router.post('/ai-chat', async (req, res) => {

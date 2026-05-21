@@ -23,6 +23,7 @@ import {
   resetUserPasswordGlobal as resetUserPasswordGlobalService,
   toggleUserStatusGlobal as toggleUserStatusGlobalService,
   updateCompanyFmsConfig as _unusedUpdateCompanyFmsConfig,
+  updateCompanyStorageLimits as updateCompanyStorageLimitsService,
   updateCompanyStatus as updateCompanyStatusService,
   updateCompanySubscription as updateCompanySubscriptionService,
   updatePlatformUser,
@@ -143,4 +144,8 @@ export const platformNotificationSettingsUpdate = asyncHandler(async (req, res) 
 
 export const platformNotificationTestEmail = asyncHandler(async (req, res) => {
   res.json(await sendPlatformNotificationTestEmailService(req.params.companyId, req.body || {}, req.user || null));
+});
+
+export const updateCompanyStorageLimits = asyncHandler(async (req, res) => {
+  res.json(await updateCompanyStorageLimitsService(req.params.companyId, req.body || {}, req.user || null));
 });

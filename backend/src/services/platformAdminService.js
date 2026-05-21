@@ -86,6 +86,20 @@ function deriveMaxUsers(planName, maxUsers) {
   return PLAN_CATALOG[planName]?.maxUsers || PLAN_CATALOG.Basic.maxUsers;
 }
 
+function deriveStorageLimit(storageLimitMB) {
+  if (Number.isFinite(Number(storageLimitMB)) && Number(storageLimitMB) >= 1) {
+    return Math.max(1, Number(storageLimitMB)); // Minimum 1MB
+  }
+  return 2048; // Default 2GB
+}
+
+function deriveAttachmentLimit(attachmentLimitMB) {
+  if (Number.isFinite(Number(attachmentLimitMB)) && Number(attachmentLimitMB) >= 1) {
+    return Math.max(1, Number(attachmentLimitMB)); // Minimum 1MB
+  }
+  return 10; // Default 10MB
+}
+
 function endOfToday() {
   const now = new Date();
   now.setHours(23, 59, 59, 999);
@@ -994,6 +1008,39 @@ export async function updateCompanyFmsConfig(companyId, payload = {}, actor = nu
     details: { sheetId, range }
   });
   return { success: true, company: serializeCompany(company) };
+}
+
+export async function updateCompanyStorageLimits(companyId, payload = {}, actor = null) {
+  const company = await Company.findById(companyId).lean();
+  if (!company) {
+    throw new ApiError(404, 'Company not found');
+  }
+
+  const storageLimitMB = deriveStorageLimit(payload.storageLimitMB);
+  const attachmentLimitMB = deriveAttachmentLimit(payload.attachmentLimitMB);
+
+  const updated = await Company.findByIdAndUpdate(
+    companyId,
+    { storageLimitMB, attachmentLimitMB },
+    { new: true }
+  ).lean();
+
+  await recordPlatformAudit({
+    actor,
+    action: 'Updated company storage limits',
+    entityType: 'Company',
+    entityId: updated._id,
+    targetCompanyId: updated._id,
+    targetCompanyName: updated.name,
+    details: {
+      oldStorageLimitMB: company.storageLimitMB,
+      newStorageLimitMB: updated.storageLimitMB,
+      oldAttachmentLimitMB: company.attachmentLimitMB,
+      newAttachmentLimitMB: updated.attachmentLimitMB
+    }
+  });
+
+  return { success: true, company: serializeCompany(updated) };
 }
 
 export async function recordUnauthorizedPlatformAccess({ actor = null, method, params = [] } = {}) {

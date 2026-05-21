@@ -192,6 +192,10 @@ export const platformApi = {
     const { data } = await api.patch(`/v1/platform/companies/${companyId}/fms`, payload);
     return data;
   },
+  updateCompanyStorageLimits: async (companyId, payload) => {
+    const { data } = await api.patch(`/v1/platform/companies/${companyId}/storage-limits`, payload);
+    return data;
+  },
   getCompanyUsers: async (companyId) => {
     const { data } = await api.get(`/v1/platform/companies/${companyId}/users`);
     return data;

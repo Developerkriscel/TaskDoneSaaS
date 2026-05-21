@@ -24,6 +24,8 @@ const companySchema = new mongoose.Schema(
     graceUntil: { type: Date, default: null },
     monthlyRate: { type: Number, default: 4999 },
     maxUsers: { type: Number, default: 25 },
+    storageLimitMB: { type: Number, default: 2048 }, // 2GB default
+    attachmentLimitMB: { type: Number, default: 10 }, // 10MB default per file
     contactPerson: { type: String, trim: true, default: '' },
     contactEmail: { type: String, trim: true, lowercase: true, default: '' },
     contactPhone: { type: String, trim: true, default: '' },

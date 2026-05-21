@@ -535,6 +535,35 @@ export default function PlatformPage() {
     }
   }
 
+  async function openStorageLimitsOverride(company) {
+    const companyId = company._id || company.companyId;
+    const result = await Swal.fire({
+      title: `Edit Storage Limits: ${company.name || company.companyName}`,
+      html: `
+        <div class="text-left space-y-4 mt-4">
+          <div><label class="form-label">Storage Limit (MB)</label><input id="swal-storage-limit" type="number" class="swal2-input form-input" value="${company.storageLimitMB || 2048}" min="1" /><small>Default: 2048 MB (2 GB)</small></div>
+          <div><label class="form-label">Max Attachment Size (MB)</label><input id="swal-attachment-limit" type="number" class="swal2-input form-input" value="${company.attachmentLimitMB || 10}" min="1" /><small>Default: 10 MB per file</small></div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Save Limits'
+    });
+    if (!result.isConfirmed) return;
+
+    const payload = {
+      storageLimitMB: Number(document.getElementById('swal-storage-limit')?.value || 2048),
+      attachmentLimitMB: Number(document.getElementById('swal-attachment-limit')?.value || 10)
+    };
+
+    try {
+      await platformApi.updateCompanyStorageLimits(companyId, payload);
+      await loadCompanyDetails(companyId);
+      Swal.fire('Saved', 'Storage limits updated successfully.', 'success');
+    } catch (err) {
+      setError(err?.response?.data?.error || err.message || 'Failed to update storage limits');
+    }
+  }
+
   function openCompanyDetails(company) {
     const selectedId = company._id || company.companyId;
     setActiveCompanyId(selectedId);
@@ -721,7 +750,8 @@ export default function PlatformPage() {
     window.handleRenewalAction = handleRenewalAction;
     window.openApprovePlanModal = openApprovePlanModal;
     window.rejectPlan = rejectPlan;
-    window.openSubscriptionOverride = openSubscriptionOverride;
+window.openSubscriptionOverride = openSubscriptionOverride;
+    window.openStorageLimitsOverride = openStorageLimitsOverride;
     window.openCompanyDetails = openCompanyDetails;
     window.viewCredentials = viewCredentials;
     window.promptResetPassword = promptResetPassword;
@@ -1119,8 +1149,9 @@ export default function PlatformPage() {
                   <h3><span className="section-title-icon"><DetailIcon /></span>Company Details</h3>
                   <p>{activeCompanyName || 'Select a company to inspect tenant internals.'}</p>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button type="button" className="platform-primary-btn" onClick={() => showView('notifications')}>Configure Sender</button>
+                  <button type="button" className="platform-primary-btn" onClick={() => window.openStorageLimitsOverride?.(companyDetails.company)}>Storage Limits</button>
                   <button type="button" className="platform-primary-btn" onClick={() => loadCompanyDetails(activeCompanyId)}>Refresh Details</button>
                 </div>
               </div>
